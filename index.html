@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>한글 영어 읽기 + 전체 MP3 Python 코드 생성</title>
+<title>한글 영어 읽기 + Python 코드 생성</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}
@@ -23,9 +23,7 @@
   th{background:#eef3ff} tr.active{background:#fff6c9} tr.done{background:#edf9ef}
   .num{width:42px;text-align:center;color:#666}.actions{width:230px}.kr{width:35%}.en{width:43%}
   pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}
-  /* 고정 영역 없음: 스크롤하면 설정도 함께 올라감 */
-  .topbar{position:static !important;background:#f6f7fb;padding-top:8px}
-  .card, .topbar, h1, table, thead, th {position:static !important; top:auto !important;}
+  .card, h1, table, thead, th {position:static !important; top:auto !important;}
 </style>
 </head>
 <body>
@@ -34,7 +32,7 @@
 
   <div class="card">
     <b>1. 데이터 넣기</b>
-    <div class="hint">탭으로 구분된 표 텍스트를 붙여넣거나, Excel/CSV 파일을 불러와. 첫 줄이 한글 / 영어 헤더면 자동으로 건너뛰어.</div>
+    <div class="hint">탭으로 구분된 표 텍스트를 붙여넣거나, Excel/CSV/TXT 파일을 불러와. '한글 / 영어' 행은 자동으로 제외돼.</div>
     <textarea id="inputText" placeholder="한글<Tab>영어 형태로 붙여넣기"></textarea>
     <div class="row">
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" />
@@ -53,15 +51,15 @@
       <button class="orange" onclick="readRandom()">🎲 랜덤 읽기</button>
       <button class="secondary" onclick="pauseSpeak()">⏸ 일시정지</button>
       <button class="green" onclick="resumeSpeak()">▶ 이어읽기</button>
-      <button class="red" onclick="stopSpeak()">■ 정지</button>      
+      <button class="red" onclick="stopSpeak()">■ 정지</button>
     </div>
-
-    <div class="row">         
-      <button class="green" onclick="generatePython()">🐍 Python 코드 생성</button>
+    <div class="row">
+      <button class="green" onclick="generatePython('both')">🐍 문장별 생성 코드</button>
+      <button class="green" onclick="generatePython('ko')">🇰🇷 한글 한 파일 코드</button>
+      <button class="green" onclick="generatePython('en')">🇺🇸 영어 한 파일 코드</button>
       <button class="green" onclick="downloadPython()">💾 .py 저장</button>
-      <button class="secondary" onclick="copyPython()">📋 코드 복사</button>      
+      <button class="secondary" onclick="copyPython()">📋 코드 복사</button>
     </div>
-
     <div class="row">
       <label>읽기 순서
         <select id="orderMode">
@@ -77,10 +75,8 @@
       <label>영어 속도 <input id="enRate" type="number" min="0.5" max="2" step="0.1" value="0.9" style="width:70px"></label>
       <label>파일명 <input id="baseName" value="opic_practice" style="width:150px"></label>
     </div>
-    <div class="hint">Python 코드는 현재 표와 설정값으로 edge-tts 전체 문장을 한 개의 mp3 파일로 만드는 코드야. 한글/영어 사이 쉬기, 문장 사이 쉬기, 반복, 랜덤 순서까지 반영돼.</div>
+    <div class="hint">Python 코드는 edge-tts만 사용해. 문장별 생성은 001_ko.mp3 / 001_en.mp3, 한글/영어 한 파일 코드는 ko.mp3 또는 en.mp3 하나로 만들어.</div>
   </div>
-
- 
 
   <div class="card" id="pythonCard" style="display:none">
     <b>생성된 Python 코드</b>
@@ -99,9 +95,10 @@
 </div>
 
 <script>
-let rows=[]; let speaking=false; let loopOne=false; let paused=false; let currentIndex=0;
+let rows=[]; let speaking=false; let loopOne=false; let paused=false; let currentIndex=0; let currentPythonMode='both';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
+function isHeader(ko,en){return ko.trim()==='한글' && en.trim()==='영어';}
 function loadSample(){
  document.getElementById('inputText').value=`한글\t영어
 집에 있는 가구에 대해 말해 주세요.\tTell me about the furniture you have in your home.
@@ -119,12 +116,12 @@ function parseText(){
  if(!text){alert('데이터를 먼저 넣어줘.');return;}
  const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
  rows=[];
- for(let i=0;i<lines.length;i++){
-   let parts=lines[i].split('\t');
-   if(parts.length<2) parts=lines[i].split(/ {2,}|,/);
-   let ko=(parts[0]||'').trim(); let en=(parts[1]||'').trim();
+ for(const line of lines){
+   let parts=line.split('\t');
+   if(parts.length<2) parts=line.split(/ {2,}|,/);
+   const ko=(parts[0]||'').trim(); const en=(parts[1]||'').trim();
    if(!ko||!en) continue;
-   if(i===0 && ko.includes('한글') && en.includes('영어')) continue;
+   if(isHeader(ko,en)) continue;
    rows.push({ko,en,done:false});
  }
  renderTable();
@@ -142,11 +139,8 @@ function renderTable(){
  });
  document.getElementById('countInfo').textContent=`${rows.length}개 문장`;
 }
-function escapeHtml(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
-function getVoice(lang){
- const voices=speechSynthesis.getVoices();
- return voices.find(v=>v.lang.toLowerCase().startsWith(lang))||null;
-}
+function escapeHtml(s){return String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+function getVoice(lang){const voices=speechSynthesis.getVoices(); return voices.find(v=>v.lang.toLowerCase().startsWith(lang))||null;}
 function speakText(text,lang,rate){
  return new Promise(resolve=>{
   if(!text){resolve();return;}
@@ -155,28 +149,26 @@ function speakText(text,lang,rate){
   u.onend=resolve; u.onerror=resolve; speechSynthesis.speak(u);
  });
 }
-function markActive(i){currentIndex=i; document.querySelectorAll('tr').forEach(x=>x.classList.remove('active')); const tr=document.getElementById('row'+i); if(tr){tr.classList.add('active');tr.scrollIntoView({block:'center',behavior:'smooth'});}}
+function markActive(i){currentIndex=i; document.querySelectorAll('tr').forEach(x=>x.classList.remove('active')); const tr=document.getElementById('row'+i); if(tr){tr.classList.add('active');}}
 function clearActive(){document.querySelectorAll('tr').forEach(x=>x.classList.remove('active'));}
 function markDone(i){const tr=document.getElementById('row'+i); if(tr) tr.classList.add('done');}
 async function speakRow(i,mode){
  if(!rows[i])return; markActive(i);
- const r=rows[i]; const gap=Number(document.getElementById('pairGapSec').value||document.getElementById('gapSec').value||0)*1000;
+ const r=rows[i]; const gap=Number(document.getElementById('pairGapSec').value||0)*1000;
  const koRate=document.getElementById('koRate').value; const enRate=document.getElementById('enRate').value;
  if(mode==='ko') await speakText(r.ko,'ko',koRate);
  else if(mode==='en') await speakText(r.en,'en',enRate);
- else {
-  if(document.getElementById('orderMode').value==='ko_en') { await speakText(r.ko,'ko',koRate); await sleep(gap); await speakText(r.en,'en',enRate); }
-  else { await speakText(r.en,'en',enRate); await sleep(gap); await speakText(r.ko,'ko',koRate); }
- }
+ else if(document.getElementById('orderMode').value==='ko_en') { await speakText(r.ko,'ko',koRate); await sleep(gap); await speakText(r.en,'en',enRate); }
+ else { await speakText(r.en,'en',enRate); await sleep(gap); await speakText(r.ko,'ko',koRate); }
  markDone(i);
 }
 async function readOne(i,mode){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=false; await speakRow(i,mode); speaking=false;}
 async function repeatOne(i){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=true; while(speaking&&loopOne){await speakRow(i,'both'); await sleep(500);} }
-async function readAll(mode){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=false; const rep=Number(document.getElementById('repeatCount').value||1); for(let k=0;k<rep;k++){for(let i=0;i<rows.length;i++){if(!speaking)return; await speakRow(i,mode); await sleep(200);}} speaking=false;}
-async function readRandom(){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=false; let arr=[...rows.keys()].sort(()=>Math.random()-0.5); const rep=Number(document.getElementById('repeatCount').value||1); for(let k=0;k<rep;k++){for(const i of arr){if(!speaking)return; await speakRow(i,'both'); await sleep(200);}} speaking=false;}
+async function readAll(mode){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=false; const rep=Number(document.getElementById('repeatCount').value||1); const gap=Number(document.getElementById('gapSec').value||0)*1000; for(let k=0;k<rep;k++){for(let i=0;i<rows.length;i++){if(!speaking)return; await speakRow(i,mode); await sleep(gap);}} speaking=false;}
+async function readRandom(){stopSpeak(); await sleep(100); speaking=true; paused=false; loopOne=false; const rep=Number(document.getElementById('repeatCount').value||1); const gap=Number(document.getElementById('gapSec').value||0)*1000; for(let k=0;k<rep;k++){let arr=[...rows.keys()].sort(()=>Math.random()-0.5); for(const i of arr){if(!speaking)return; await speakRow(i,'both'); await sleep(gap);}} speaking=false;}
 function pauseSpeak(){if(speechSynthesis.speaking){paused=true; speechSynthesis.pause();}}
 function resumeSpeak(){if(paused){paused=false; speechSynthesis.resume();}}
-function stopSpeak(){speaking=false;loopOne=false;paused=false;currentIndex=0;speechSynthesis.cancel();clearActive(); const first=document.getElementById('row0'); if(first){first.classList.add('active'); first.scrollIntoView({block:'center',behavior:'smooth'});}}
+function stopSpeak(){speaking=false;loopOne=false;paused=false;currentIndex=0;speechSynthesis.cancel();clearActive(); const first=document.getElementById('row0'); if(first){first.classList.add('active');}}
 
 document.getElementById('fileInput').addEventListener('change', async e=>{
  const file=e.target.files[0]; if(!file)return;
@@ -191,128 +183,167 @@ document.getElementById('fileInput').addEventListener('change', async e=>{
  const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
  const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});
  rows=[];
- arr.forEach((line,idx)=>{
+ arr.forEach(line=>{
   const ko=String(line[0]||'').trim(); const en=String(line[1]||'').trim();
-  if(!ko||!en)return; if(idx===0&&ko.includes('한글')&&en.includes('영어'))return;
+  if(!ko||!en)return; if(isHeader(ko,en))return;
   rows.push({ko,en,done:false});
  });
  document.getElementById('inputText').value=rows.map(r=>`${r.ko}\t${r.en}`).join('\n'); renderTable();
 });
 
-function pyEscape(s){return s.replace(/\\/g,'\\\\').replace(/"/g,'\\"');}
-function generatePython(){
- if(rows.length===0){alert('먼저 표를 생성해줘.');return;}
- const base=document.getElementById('baseName').value||'opic_practice';
- const order=document.getElementById('orderMode').value;
- const pairGap=Number(document.getElementById('pairGapSec')?.value||0.7);
- const lineGap=Number(document.getElementById('gapSec').value||1.0);
- const repeat=Number(document.getElementById('repeatCount').value||1);
- const randomOrder=document.getElementById('pythonRandom')?.checked || false;
- const koRate=rateToEdge(document.getElementById('koRate').value);
- const enRate=rateToEdge(document.getElementById('enRate').value);
- const data=rows.map(r=>`    ("${pyEscape(r.ko)}", "${pyEscape(r.en)}")`).join(',\n');
- const code=`# 전체 문장을 한 개의 mp3 파일로 저장하는 edge-tts 코드
-# 처음 한 번만 설치:
-#   pip install edge-tts pydub
-# pydub로 mp3를 합치려면 ffmpeg 설치가 필요할 수 있어.
-# 윈도우에서 ffmpeg 오류가 나면 ffmpeg를 설치하고 PATH에 추가해줘.
+function pyStr(s){return JSON.stringify(String(s));}
+function getPythonDataBlock(){return rows.map(r=>`    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n');}
+function rateToEdge(v){const n=Number(v||1); const pct=Math.round((n-1)*100); if(pct===0)return '+0%'; return pct>0?`+${pct}%`:`${pct}%`;}
+function setPythonCode(code,mode){currentPythonMode=mode; document.getElementById('pythonCode').textContent=code; document.getElementById('pythonCard').style.display='block'; return code;}
 
-import asyncio
-import random
-import shutil
-from pathlib import Path
-
-import edge_tts
-from pydub import AudioSegment
-
-DATA = [
-${data}
-]
-
-BASE_NAME = "${pyEscape(base)}"
-OUTPUT_MP3 = f"{BASE_NAME}_full.mp3"
-TEMP_DIR = Path(f"{BASE_NAME}_temp_audio")
-
-ORDER = "${order}"          # ko_en 또는 en_ko
-REPEAT_COUNT = ${repeat}
-RANDOM_ORDER = ${randomOrder ? 'True' : 'False'}
-PAIR_GAP_SECONDS = ${pairGap}   # 한글과 영어 사이 간격
-LINE_GAP_SECONDS = ${lineGap}   # 다음 문장으로 넘어가기 전 간격
-
-KO_VOICE = "ko-KR-SunHiNeural"
-EN_VOICE = "en-US-JennyNeural"
-KO_RATE = "${koRate}"
-EN_RATE = "${enRate}"
-
-
-def silence(seconds: float) -> AudioSegment:
-    return AudioSegment.silent(duration=int(seconds * 1000))
-
-
-async def make_mp3(text: str, voice: str, rate: str, path: Path):
-    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)
-    await communicate.save(str(path))
-
-
-async def main():
-    if TEMP_DIR.exists():
-        shutil.rmtree(TEMP_DIR)
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
-    sequence = list(DATA)
-    if RANDOM_ORDER:
-        random.shuffle(sequence)
-
-    full_audio = AudioSegment.empty()
-    clip_no = 1
-
-    for repeat_index in range(REPEAT_COUNT):
-        if repeat_index > 0:
-            full_audio += silence(LINE_GAP_SECONDS)
-
-        for idx, (ko, en) in enumerate(sequence, start=1):
-            ko_path = TEMP_DIR / f"{clip_no:04d}_ko.mp3"
-            en_path = TEMP_DIR / f"{clip_no:04d}_en.mp3"
-
-            await make_mp3(ko, KO_VOICE, KO_RATE, ko_path)
-            await make_mp3(en, EN_VOICE, EN_RATE, en_path)
-
-            ko_audio = AudioSegment.from_mp3(ko_path)
-            en_audio = AudioSegment.from_mp3(en_path)
-
-            if ORDER == "ko_en":
-                full_audio += ko_audio
-                full_audio += silence(PAIR_GAP_SECONDS)
-                full_audio += en_audio
-            else:
-                full_audio += en_audio
-                full_audio += silence(PAIR_GAP_SECONDS)
-                full_audio += ko_audio
-
-            if idx < len(sequence):
-                full_audio += silence(LINE_GAP_SECONDS)
-
-            print(f"added {clip_no:04d}: {ko} / {en}")
-            clip_no += 1
-
-    full_audio.export(OUTPUT_MP3, format="mp3")
-    print(f"완료: {OUTPUT_MP3}")
-    print("임시 파일 폴더:", TEMP_DIR)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-`;
- document.getElementById('pythonCode').textContent=code;
- document.getElementById('pythonCard').style.display='block';
- document.getElementById('pythonCard').scrollIntoView({block:'start',behavior:'smooth'});
- return code;
+function baseSettings(){
+ return {
+  base: document.getElementById('baseName').value || 'opic_practice',
+  order: document.getElementById('orderMode').value,
+  repeat: Number(document.getElementById('repeatCount').value || 1),
+  random: document.getElementById('pythonRandom').checked,
+  koRate: rateToEdge(document.getElementById('koRate').value),
+  enRate: rateToEdge(document.getElementById('enRate').value),
+  data: getPythonDataBlock()
+ };
 }
-function rateToEdge(v){
- const n=Number(v||1); const pct=Math.round((n-1)*100); if(pct===0)return '+0%'; return (pct>0?`+${pct}%`:`${pct}%`);
+
+function generatePython(mode='both'){
+ if(rows.length===0){alert('먼저 표를 생성해줘.');return '';}
+ const s=baseSettings();
+ if(mode==='ko'){
+  return setPythonCode([
+'# pip install edge-tts',
+'import asyncio',
+'from pathlib import Path',
+'import edge_tts',
+'',
+`BASE_NAME = ${pyStr(s.base)}`,
+'',
+'KO_VOICE = "ko-KR-SunHiNeural"',
+`KO_RATE = ${pyStr(s.koRate)}`,
+'',
+'DATA = [',
+s.data,
+']',
+'',
+'out_dir = Path(BASE_NAME)',
+'out_dir.mkdir(exist_ok=True)',
+'',
+'',
+'async def make_mp3(text, voice, rate, path):',
+'    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)',
+'    await communicate.save(str(path))',
+'    print(f"생성 완료: {path}")',
+'',
+'',
+'async def main():',
+'    final_ko_text = " ".join([ko for ko, en in DATA])',
+'    ko_file = out_dir / "ko.mp3"',
+'    await make_mp3(final_ko_text, KO_VOICE, KO_RATE, ko_file)',
+'',
+'',
+'if __name__ == "__main__":',
+'    asyncio.run(main())'
+  ].join('\n'), mode);
+ }
+ if(mode==='en'){
+  return setPythonCode([
+'# pip install edge-tts',
+'import asyncio',
+'from pathlib import Path',
+'import edge_tts',
+'',
+`BASE_NAME = ${pyStr(s.base)}`,
+'',
+'EN_VOICE = "en-US-JennyNeural"',
+`EN_RATE = ${pyStr(s.enRate)}`,
+'',
+'DATA = [',
+s.data,
+']',
+'',
+'out_dir = Path(BASE_NAME)',
+'out_dir.mkdir(exist_ok=True)',
+'',
+'',
+'async def make_mp3(text, voice, rate, path):',
+'    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)',
+'    await communicate.save(str(path))',
+'    print(f"생성 완료: {path}")',
+'',
+'',
+'async def main():',
+'    final_en_text = " ".join([en for ko, en in DATA])',
+'    en_file = out_dir / "en.mp3"',
+'    await make_mp3(final_en_text, EN_VOICE, EN_RATE, en_file)',
+'',
+'',
+'if __name__ == "__main__":',
+'    asyncio.run(main())'
+  ].join('\n'), mode);
+ }
+ return setPythonCode([
+'# pip install edge-tts',
+'import asyncio',
+'import random',
+'from pathlib import Path',
+'import edge_tts',
+'',
+`BASE_NAME = ${pyStr(s.base)}  # file name`,
+`ORDER = ${pyStr(s.order)}   # ko_en 또는 en_ko`,
+`REPEAT_COUNT = ${s.repeat}`,
+`RANDOM_ORDER = ${s.random ? 'True' : 'False'}`,
+'',
+'KO_VOICE = "ko-KR-SunHiNeural"',
+'EN_VOICE = "en-US-JennyNeural"',
+`KO_RATE = ${pyStr(s.koRate)}`,
+`EN_RATE = ${pyStr(s.enRate)}`,
+'',
+'DATA = [',
+s.data,
+']',
+'',
+'out_dir = Path(BASE_NAME)',
+'out_dir.mkdir(exist_ok=True)',
+'',
+'',
+'async def make_mp3(text, voice, rate, path):',
+'    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)',
+'    await communicate.save(str(path))',
+'',
+'',
+'async def main():',
+'    sequence = list(DATA)',
+'    if RANDOM_ORDER:',
+'        random.shuffle(sequence)',
+'',
+'    clip_no = 1',
+'    for repeat_index in range(REPEAT_COUNT):',
+'        for ko, en in sequence:',
+'            no = f"{clip_no:03d}"',
+'            ko_file = out_dir / f"{no}_ko.mp3"',
+'            en_file = out_dir / f"{no}_en.mp3"',
+'',
+'            if ORDER == "ko_en":',
+'                await make_mp3(ko, KO_VOICE, KO_RATE, ko_file)',
+'                await make_mp3(en, EN_VOICE, EN_RATE, en_file)',
+'            else:',
+'                await make_mp3(en, EN_VOICE, EN_RATE, en_file)',
+'                await make_mp3(ko, KO_VOICE, KO_RATE, ko_file)',
+'',
+'            print(f"saved {no}: {ko_file.name}, {en_file.name}")',
+'            clip_no += 1',
+'',
+'    print("완료! mp3 파일이 폴더에 저장됐어.")',
+'',
+'',
+'if __name__ == "__main__":',
+'    asyncio.run(main())'
+ ].join('\n'), mode);
 }
-function copyPython(){const code=document.getElementById('pythonCode').textContent||generatePython(); navigator.clipboard.writeText(code); alert('코드 복사했어.');}
-function downloadPython(){const code=document.getElementById('pythonCode').textContent||generatePython(); if(!code)return; const blob=new Blob([code],{type:'text/x-python'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(document.getElementById('baseName').value||'opic_practice')+'.py'; a.click(); URL.revokeObjectURL(a.href);}
+function copyPython(){let code=document.getElementById('pythonCode').textContent; if(!code) code=generatePython(currentPythonMode); if(!code)return; navigator.clipboard.writeText(code); alert('코드 복사했어.');}
+function downloadPython(){let code=document.getElementById('pythonCode').textContent; if(!code) code=generatePython(currentPythonMode); if(!code)return; const suffix=currentPythonMode==='ko'?'_ko_onefile':currentPythonMode==='en'?'_en_onefile':'_sentence_files'; const blob=new Blob([code],{type:'text/x-python'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(document.getElementById('baseName').value||'opic_practice')+suffix+'.py'; a.click(); URL.revokeObjectURL(a.href);}
 </script>
 </body>
 </html>
