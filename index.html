@@ -6,7 +6,7 @@
 <title>한글 영어 읽기 프로그램</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}.wrap{max-width:1200px;margin:0 auto;padding:18px}h1{font-size:24px;margin:8px 0 14px}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}textarea{width:100%;height:150px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:10px;font-size:15px;line-height:1.45}button{border:0;border-radius:9px;padding:9px 12px;margin:4px;background:#2f6fed;color:white;font-weight:700;cursor:pointer}button.secondary{background:#555}button.green{background:#138a4d}button.orange{background:#e57920}button.red{background:#d93f3f}button.gray{background:#777}button.small{padding:6px 9px;font-size:13px;margin:2px}input,select{padding:7px;border:1px solid #ccc;border-radius:8px;margin:4px}label{display:inline-flex;align-items:center;gap:4px;margin:5px 10px 5px 0;font-size:14px}.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.book-row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}.book-name{width:90px;font-weight:800;font-size:15px}.book-row select{min-width:260px}.hint{font-size:13px;color:#666;margin-top:6px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #ddd;padding:6px 7px;vertical-align:top;font-size:14px}th{background:#eef3ff}tr.active{background:#fff6c9}tr.done{background:#edf9ef}.num{width:42px;text-align:center;color:#666}.actions{width:230px}.kr{width:35%}.en{width:43%}pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}.random-count{min-width:110px;background:#fffaf3;border:1px solid #f0b36a}.question-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px;margin:10px 0;line-height:1.5}.question-group-title{margin-top:10px;color:#166534;font-weight:800}.question-item{margin:8px 0;color:#14532d}.question-no{display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 6px;font-weight:900;margin-right:4px}.q-en{font-weight:800}.q-ko{margin-top:2px}.q-meta{font-size:12px;color:#666;margin-top:2px}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}.wrap{max-width:1200px;margin:0 auto;padding:18px}h1{font-size:24px;margin:8px 0 14px}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}textarea{width:100%;height:150px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:10px;font-size:15px;line-height:1.45}button{border:0;border-radius:9px;padding:9px 12px;margin:4px;background:#2f6fed;color:white;font-weight:700;cursor:pointer}button.secondary{background:#555}button.green{background:#138a4d}button.orange{background:#e57920}button.red{background:#d93f3f}button.gray{background:#777}button.small{padding:6px 9px;font-size:13px;margin:2px}input,select{padding:7px;border:1px solid #ccc;border-radius:8px;margin:4px}label{display:inline-flex;align-items:center;gap:4px;margin:5px 10px 5px 0;font-size:14px}.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.book-row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}.book-name{width:90px;font-weight:800;font-size:15px}.book-row select{min-width:260px}.hint{font-size:13px;color:#666;margin-top:6px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #ddd;padding:6px 7px;vertical-align:top;font-size:14px}th{background:#eef3ff}tr.active{background:#fff6c9}tr.done{background:#edf9ef}.num{width:42px;text-align:center;color:#666}.actions{width:230px}.kr{width:35%}.en{width:43%}pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}.random-count{min-width:110px;background:#fffaf3;border:1px solid #f0b36a}.question-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px;margin:10px 0;line-height:1.5}.question-group-title{margin-top:10px;color:#166534;font-weight:800}.question-item{margin:8px 0;color:#14532d}.question-no{display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 6px;font-weight:900;margin-right:4px}.q-en{font-weight:800}.q-ko{margin-top:2px}.q-meta{font-size:12px;color:#666;margin-top:2px}.keyword-toggle{background:#0f766e;padding:6px 9px;font-size:12px;margin:6px 0 3px}.keyword-box{display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:10px;padding:9px;margin-top:5px;color:#164e63;white-space:pre-wrap}.keyword-copy{background:#0891b2;padding:5px 8px;font-size:12px;margin-left:5px}
 </style>
 </head>
 <body>
@@ -96,6 +96,14 @@ function parseQuestionSheet(ws){
    trans:['해석','번역']
  });
  if(!header)return {};
+
+ // H열 답변 흐름 읽기
+ // 1순위: 헤더명 "답변 흐름 / 내 답변 키워드 / 키워드 / 흐름"
+ // 2순위: 실제 H열(index 7)
+ const headerCells=(arr[header.rowIndex]||[]).map(norm);
+ let flowCol=headerCells.findIndex(v=>['답변흐름','내답변키워드','답변키워드','키워드','흐름'].includes(v));
+ if(flowCol<0) flowCol=7;
+
  const res={};
  for(let r=header.rowIndex+1;r<arr.length;r++){
    const line=arr[r]||[];
@@ -104,10 +112,11 @@ function parseQuestionSheet(ws){
    const questionNo=idCell(line[header.cols.qno]);
    const content=val(line,header.cols.content);
    const trans=val(line,header.cols.trans);
-   if(!unitNo&&!groupNo&&!questionNo&&!content&&!trans) continue;
+   const flow=val(line,flowCol);
+   if(!unitNo&&!groupNo&&!questionNo&&!content&&!trans&&!flow) continue;
    if(!unitNo||!groupNo||!questionNo) continue;
    const k=keyOf(unitNo,groupNo,questionNo);
-   res[k]={unitNo,groupNo,questionNo,content,trans};
+   res[k]={unitNo,groupNo,questionNo,content,trans,flow};
  }
  return res;
 }
@@ -121,13 +130,22 @@ function parseAnswerSheet(ws,sheetName){
    en:['영어','english']
  });
  if(!header)return [];
+
+ // 답변 시트의 H열 "답변 흐름" 읽기
+ // 헤더명이 있으면 그 열을 쓰고, 못 찾으면 H열(index 7)을 사용한다.
+ const headerCells=(arr[header.rowIndex]||[]).map(norm);
+ let flowCol=headerCells.findIndex(v=>['답변흐름','내답변키워드','답변키워드','키워드','흐름'].includes(v));
+ if(flowCol<0) flowCol=7;
+
  const blocks=[];
  let answers=[];
  let refs=[];
+ let flows=[];
  let blockNo=1;
  let lastUnit='';
  let lastGroup='';
- const cols=[header.cols.unit,header.cols.group,header.cols.qno,header.cols.ko,header.cols.en];
+ const cols=[header.cols.unit,header.cols.group,header.cols.qno,header.cols.ko,header.cols.en,flowCol];
+
  function addRef(u,g,q){
    const unitNo=idCell(u||lastUnit);
    const groupNo=idCell(g||lastGroup);
@@ -135,19 +153,32 @@ function parseAnswerSheet(ws,sheetName){
    if(!unitNo||!groupNo||!questionNo) return;
    refs.push({unitNo,groupNo,questionNo});
  }
+
+ function addFlow(text){
+   const t=String(text||'').trim();
+   if(!t) return;
+   if(!flows.includes(t)) flows.push(t);
+ }
+
  function saveBlock(){
-   if(answers.length===0){refs=[]; lastUnit=''; lastGroup=''; return;}
+   if(answers.length===0){
+     refs=[]; flows=[]; lastUnit=''; lastGroup='';
+     return;
+   }
    blocks.push({
      sheetName,
      blockNo:blockNo++,
      refs:uniqueRefs(refs),
-     answers:[...answers]
+     answers:[...answers],
+     flows:[...flows]
    });
    answers=[];
    refs=[];
+   flows=[];
    lastUnit='';
    lastGroup='';
  }
+
  for(let r=header.rowIndex+1;r<arr.length;r++){
    const line=arr[r]||[];
    const isBlank=cols.every(c=>!val(line,c));
@@ -158,12 +189,12 @@ function parseAnswerSheet(ws,sheetName){
    const questionNo=idCell(line[header.cols.qno]);
    const ko=val(line,header.cols.ko);
    const en=val(line,header.cols.en);
+   const flow=val(line,flowCol);
 
-   // 이 줄에 적힌 A/B/C 컬럼 번호만 질문 참조로 사용한다.
-   // G열 메모칸의 (1), [Int] 같은 값은 절대 질문번호로 읽지 않는다.
    if(unitNo) lastUnit=unitNo;
    if(groupNo) lastGroup=groupNo;
    if(questionNo) addRef(unitNo,groupNo,questionNo);
+   addFlow(flow);
 
    if(ko||en){
      answers.push({ko,en});
@@ -200,7 +231,8 @@ async function loadWorkbookFile(file){
         blockNo:b.blockNo,
         refs:b.refs,
         questions,
-        answers:b.answers
+        answers:b.answers,
+        flows:b.flows || []
       });
     });
   });
@@ -216,9 +248,42 @@ async function loadWorkbookFile(file){
 }
 function itemToPairs(item){return item.answers.map(a=>({ko:a.ko,en:a.en}));}
 function showQuestions(items){
- const box=document.getElementById('questionBox'), list=document.getElementById('questionList'); const html=[];
- items.forEach(item=>{html.push(`<div class="question-group-title">${escapeHtml(item.label)}</div>`); if(!item.questions||!item.questions.length){html.push('<div class="question-item">연결된 질문 번호가 없어.</div>');return;} item.questions.forEach(q=>{const no=compactNo(q.unitNo,q.groupNo,q.questionNo); html.push(`<div class="question-item"><div><span class="question-no">${escapeHtml(no)}.</span><span class="q-en">${escapeHtml(q.content||'질문을 찾지 못했어.')}</span></div>${q.trans?`<div class="q-ko">${escapeHtml(q.trans)}</div>`:''}<div class="q-meta">U${escapeHtml(q.unitNo)} G${escapeHtml(q.groupNo)} Q${escapeHtml(q.questionNo)}</div></div>`);});});
- list.innerHTML=html.join(''); box.style.display=html.length?'block':'none';
+ const box=document.getElementById('questionBox'), list=document.getElementById('questionList');
+ const html=[];
+ let keywordNo=0;
+ items.forEach(item=>{
+  html.push(`<div class="question-group-title">${escapeHtml(item.label)}</div>`);
+  if(!item.questions||!item.questions.length){
+    html.push('<div class="question-item">연결된 질문 번호가 없어.</div>');
+  }else{
+    item.questions.forEach(q=>{
+      const no=compactNo(q.unitNo,q.groupNo,q.questionNo);
+      html.push(`<div class="question-item"><div><span class="question-no">${escapeHtml(no)}.</span><span class="q-en">${escapeHtml(q.content||'질문을 찾지 못했어.')}</span></div>${q.trans?`<div class="q-ko">${escapeHtml(q.trans)}</div>`:''}<div class="q-meta">U${escapeHtml(q.unitNo)} G${escapeHtml(q.groupNo)} Q${escapeHtml(q.questionNo)}</div></div>`);
+    });
+  }
+
+  // 답변 시트 H열의 "답변 흐름"은 질문 아래에 한 번만 표시한다.
+  const flowText=(item.flows||[]).map(x=>String(x).trim()).filter(Boolean).join('\n');
+  if(flowText){
+    const flowId=`keyword_${keywordNo++}`;
+    html.push(`<div class="question-item"><button class="keyword-toggle" onclick="toggleKeyword('${flowId}', this)">키워드 보기</button><button class="keyword-copy" onclick="copyKeyword('${flowId}')">복사</button><div id="${flowId}" class="keyword-box">${escapeHtml(flowText)}</div></div>`);
+  }
+ });
+ list.innerHTML=html.join('');
+ box.style.display=html.length?'block':'none';
+}
+function toggleKeyword(id,btn){
+ const box=document.getElementById(id);
+ if(!box)return;
+ const show=box.style.display!=='block';
+ box.style.display=show?'block':'none';
+ if(btn)btn.textContent=show?'키워드 숨기기':'키워드 보기';
+}
+function copyKeyword(id){
+ const box=document.getElementById(id);
+ if(!box)return;
+ navigator.clipboard.writeText(box.textContent||'');
+ alert('키워드 복사했어.');
 }
 function hideQuestions(){document.getElementById('questionBox').style.display='none';document.getElementById('questionList').innerHTML='';}
 function setRows(pairs){document.getElementById('inputText').value=pairs.map(i=>`${i.ko}\t${i.en}`).join('\n');parseText();}
