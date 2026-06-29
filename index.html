@@ -1,326 +1,886 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>한글 영어 읽기 프로그램</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<style>
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}.wrap{max-width:1200px;margin:0 auto;padding:18px}h1{font-size:24px;margin:8px 0 14px}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}textarea{width:100%;height:150px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:10px;font-size:15px;line-height:1.45}button{border:0;border-radius:9px;padding:9px 12px;margin:4px;background:#2f6fed;color:white;font-weight:700;cursor:pointer}button.secondary{background:#555}button.green{background:#138a4d}button.orange{background:#e57920}button.red{background:#d93f3f}button.gray{background:#777}button.small{padding:6px 9px;font-size:13px;margin:2px}input,select{padding:7px;border:1px solid #ccc;border-radius:8px;margin:4px}label{display:inline-flex;align-items:center;gap:4px;margin:5px 10px 5px 0;font-size:14px}.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.book-row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}.book-name{width:90px;font-weight:800;font-size:15px}.book-row select{min-width:260px}.hint{font-size:13px;color:#666;margin-top:6px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #ddd;padding:6px 7px;vertical-align:top;font-size:14px}th{background:#eef3ff}tr.active{background:#fff6c9}tr.done{background:#edf9ef}.num{width:42px;text-align:center;color:#666}.actions{width:230px}.kr{width:35%}.en{width:43%}pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}.random-count{min-width:110px;background:#fffaf3;border:1px solid #f0b36a}.question-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px;margin:10px 0;line-height:1.5}.question-group-title{margin-top:10px;color:#166534;font-weight:800}.question-item{margin:8px 0;color:#14532d}.question-no{display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 6px;font-weight:900;margin-right:4px}.q-en{font-weight:800}.q-ko{margin-top:2px}.q-meta{font-size:12px;color:#666;margin-top:2px}.keyword-toggle{background:#0f766e;padding:6px 9px;font-size:12px;margin:6px 0 3px}.keyword-box{display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:10px;padding:9px;margin-top:5px;color:#164e63;white-space:pre-wrap}.keyword-copy{background:#0891b2;padding:5px 8px;font-size:12px;margin-left:5px}
-</style>
-</head>
-<body>
-<div class="wrap">
-<h1>한글 영어 읽기 프로그램</h1>
+let rows = [];
+let speaking = false;
+let loopOne = false;
+let paused = false;
+let currentIndex = 0;
+let currentPythonMode = 'both';
+let playToken = 0;
 
-<div class="card">
-  <b>0. 엑셀 문장집 불러오기</b>
-  <div class="book-row">
-    <span class="book-name">문장집</span>
-    <input type="file" id="bookExcelInput" accept=".xlsx,.xls" onchange="loadWorkbookFile(this.files[0])">
-    <select id="unitSelect"><option value="">엑셀 파일을 먼저 선택</option></select>
-    <button onclick="loadSelectedItem()">선택 불러오기</button>
-    <button class="secondary" onclick="loadAllItems()">전체 불러오기</button>
-    <select id="randomCount" class="random-count"><option value="5">랜덤 5개</option><option value="10" selected>랜덤 10개</option><option value="20">랜덤 20개</option></select>
-    <button class="orange" onclick="loadRandomItems()">랜덤 불러오기</button>
-  </div>
-  <div class="hint">답변 탭은 헤더 아래에서 빈 줄 전까지 한 묶음으로 읽어. 같은 묶음 안의 unit/그룹/질문 번호는 전부 질문 박스에 표시해.</div>
-</div>
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-<div class="card">
-<b>1. 데이터 넣기</b>
-<div class="hint">탭 또는 엔터로 구분된 한글/영어 문장을 붙여넣거나, Excel/CSV/TXT 파일을 불러와.</div>
-<textarea id="inputText" placeholder="한글<Tab>영어 또는 한글<Enter>영어 형태로 붙여넣기"></textarea>
-<div class="row"><input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" /><button onclick="parseText()">표 생성</button><button class="secondary" onclick="loadSample()">샘플 넣기</button><button class="gray" onclick="clearAll()">초기화</button></div>
-</div>
+const BOOK = {
+  workbook: null,
+  questionsExact: {},
+  questionsByUnitQ: {},
+  items: []
+};
 
-<div class="card">
-<b>2. 읽기 설정 / Python 코드</b>
-<div class="row"><button onclick="readAll('both')">▶ 표 읽기</button><button onclick="readAll('ko')">한글</button><button onclick="readAll('en')">영어</button><button class="orange" onclick="readRandom()">🎲 랜덤 읽기</button><button class="secondary" onclick="pauseSpeak()">⏸ 일시정지</button><button class="green" onclick="resumeSpeak()">▶ 이어읽기</button><button class="red" onclick="stopSpeak()">■ 정지</button></div>
-<div class="row"><button class="green" onclick="generatePython('both')">🐍 문장별 생성 코드</button><button class="green" onclick="generatePython('ko')">🇰🇷 한글 한 파일 코드</button><button class="green" onclick="generatePython('en')">🇺🇸 영어 한 파일 코드</button><button class="green" onclick="downloadPython()">💾 .py 저장</button><button class="secondary" onclick="copyPython()">📋 코드 복사</button></div>
-<div class="row"><label>읽기 순서<select id="orderMode"><option value="ko_en">한글 → 영어</option><option value="en_ko">영어 → 한글</option></select></label><label>반복 <input id="repeatCount" type="number" min="1" value="1" style="width:60px"> 회</label><label>한글/영어 사이 쉬기 <input id="pairGapSec" type="number" min="0" step="0.1" value="5" style="width:70px"> 초</label><label>문장 사이 쉬기 <input id="gapSec" type="number" min="0" step="0.1" value="1.0" style="width:70px"> 초</label><label><input id="pythonRandom" type="checkbox"> Python 랜덤 순서</label><label>한글 속도 <input id="koRate" type="number" min="0.5" max="2" step="0.1" value="1.2" style="width:70px"></label><label>영어 속도 <input id="enRate" type="number" min="0.5" max="2" step="0.1" value="1.0" style="width:70px"></label><label>파일명 <input id="baseName" value="opic_practice" style="width:150px"></label></div>
-</div>
-
-<div class="card" id="pythonCard" style="display:none"><b>생성된 Python 코드</b><pre id="pythonCode"></pre></div>
-
-<div class="card"><b>3. 생성된 표</b><div class="hint">각 행의 ▶전체 / 한글 / 영어 / 🔁 버튼으로 그 문장만 읽을 수 있어.</div><div id="questionBox" class="question-box" style="display:none"><b>질문</b><div id="questionList"></div></div><div id="countInfo" class="hint">0개 문장</div><table id="dataTable"><thead><tr><th class="num">번호</th><th class="kr">한글 <button class="green small" onclick="displayRow('ko', this)">숨기기</button></th><th class="en">영어 <button class="green small" onclick="displayRow('en', this)">숨기기</button></th><th class="actions">기능</th></tr></thead><tbody></tbody></table></div>
-</div>
-<script>
-let rows=[],speaking=false,loopOne=false,paused=false,currentIndex=0,currentPythonMode='both',playToken=0;
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const BOOK={workbook:null,questions:{},items:[]};
-function norm(s){return String(s??'').trim().replace(/\s+/g,'').toLowerCase();}
-function val(row,i){return String((row&&row[i]!=null)?row[i]:'').trim();}
-function idCell(v){
- const s=String(v??'').trim();
- if(!s)return '';
- if(/^\d+(?:\.0+)?$/.test(s))return String(parseInt(s,10));
- return s;
+function normalizeHeader(s){
+  return String(s || '').trim().replace(/\s+/g, '').toLowerCase();
 }
-function isBlankRow(row,cols){return cols.every(c=>!val(row,c));}
-function keyOf(u,g,q){return `${String(u).trim()}|${String(g).trim()}|${String(q).trim()}`;}
-function compactNo(u,g,q){return `${String(u).trim()}${String(g).trim()}${String(q).trim()}`;}
-function escapeHtml(s){return String(s??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
-function escapeAttr(s){return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function pyStr(s){return JSON.stringify(String(s??''));}
-function uniqueRefs(refs){const seen=new Set(),out=[]; refs.forEach(r=>{if(!r.unitNo||!r.groupNo||!r.questionNo)return; const k=keyOf(r.unitNo,r.groupNo,r.questionNo); if(!seen.has(k)){seen.add(k);out.push(r);}}); return out;}
-function findHeaderRow(arr, required){
-  for(let r=0;r<arr.length;r++){
-    const cells=(arr[r]||[]).map(norm); let cols={};
-    for(const [key,aliases] of Object.entries(required)){
-      const list=Array.isArray(aliases)?aliases:[aliases];
-      const idx=cells.findIndex(v=>list.map(norm).includes(v));
-      cols[key]=idx;
+function normalizeKeyPart(s){
+  const v = String(s ?? '').trim();
+  if (/^\d+(\.0)?$/.test(v)) return String(parseInt(v, 10));
+  return v;
+}
+function makeQuestionKey(unit, group, qno){
+  return `${normalizeKeyPart(unit)}__${normalizeKeyPart(group)}__${normalizeKeyPart(qno)}`;
+}
+function makeUnitQKey(unit, qno){
+  return `${normalizeKeyPart(unit)}__${normalizeKeyPart(qno)}`;
+}
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+}
+function escapeAttr(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+function findHeaderIndex(row, aliases){
+  const targets = aliases.map(normalizeHeader);
+  return (row || []).findIndex(v => targets.includes(normalizeHeader(v)));
+}
+function getUnitNoFromSheetName(sheetName){
+  const m = String(sheetName).match(/^(\d+)/);
+  return m ? String(Number(m[1])) : String(sheetName).trim();
+}
+function getCell(line, idx){
+  if (idx === undefined || idx === null || idx < 0) return '';
+  return String((line || [])[idx] ?? '').trim();
+}
+function hasText(line, idx){
+  return getCell(line, idx) !== '';
+}
+function addQuestionToBook(q){
+  const exact = makeQuestionKey(q.unitNo, q.groupNo, q.qNo);
+  const unitQ = makeUnitQKey(q.unitNo, q.qNo);
+  if (!BOOK.questionsExact[exact]) BOOK.questionsExact[exact] = [];
+  if (!BOOK.questionsByUnitQ[unitQ]) BOOK.questionsByUnitQ[unitQ] = [];
+  BOOK.questionsExact[exact].push(q);
+  BOOK.questionsByUnitQ[unitQ].push(q);
+}
+function getQuestionsForRef(ref){
+  const exact = BOOK.questionsExact[makeQuestionKey(ref.unitNo, ref.groupNo, ref.qNo)] || [];
+  if (exact.length) return exact;
+
+  // 그룹 번호가 비어 있거나 맞지 않는 경우에만 unit + 질문번호로 보조 검색한다.
+  // 질문번호만으로 검색하면 3번 유닛 Q1이 1번 유닛 Q1로 잘못 연결될 수 있어서 금지.
+  const unitNo = normalizeKeyPart(ref.unitNo);
+  const qNo = normalizeKeyPart(ref.qNo);
+  if (!unitNo || !qNo) return [];
+  return BOOK.questionsByUnitQ[makeUnitQKey(unitNo, qNo)] || [];
+}
+function uniqueQuestionRefs(refs){
+  const seen = new Set();
+  const result = [];
+  refs.forEach(ref => {
+    const unitNo = normalizeKeyPart(ref.unitNo);
+    const groupNo = normalizeKeyPart(ref.groupNo);
+    const qNo = normalizeKeyPart(ref.qNo);
+    if (!unitNo || !qNo) return;
+    const key = `${unitNo}__${groupNo}__${qNo}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push({unitNo, groupNo, qNo});
+  });
+  return result;
+}
+
+async function loadWorkbookFile(file){
+  if (!file) return;
+  try{
+    stopSpeak();
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, {type:'array'});
+
+    BOOK.workbook = wb;
+    BOOK.questionsExact = {};
+    BOOK.questionsByUnitQ = {};
+    BOOK.items = [];
+
+    const questionSheetName =
+      wb.SheetNames.find(n => String(n).replace(/\s+/g,'') === '0.질문') ||
+      wb.SheetNames.find(n => String(n).includes('질문'));
+
+    if (questionSheetName) parseQuestionSheet(wb.Sheets[questionSheetName]);
+
+    wb.SheetNames.forEach(sheetName => {
+      if (sheetName === questionSheetName) return;
+
+      const fallbackUnitNo = getUnitNoFromSheetName(sheetName);
+      const blocks = parseAnswerSheet(wb.Sheets[sheetName], fallbackUnitNo);
+
+      blocks.forEach((block, index) => {
+        const questionRefs = uniqueQuestionRefs(block.questionRefs || []);
+        const questions = [];
+        const seenQ = new Set();
+
+        questionRefs.forEach(ref => {
+          getQuestionsForRef(ref).forEach(q => {
+            const key = `${q.unitNo}__${q.groupNo}__${q.qNo}__${q.content}__${q.translation}`;
+            if (seenQ.has(key)) return;
+            seenQ.add(key);
+            questions.push(q);
+          });
+        });
+
+        BOOK.items.push({
+          key: `${sheetName}__${index + 1}`,
+          label: `${sheetName}_${index + 1}`,
+          sheetName,
+          unitNo: block.unitNo || fallbackUnitNo,
+          blockNo: index + 1,
+          questionRefs,
+          questions,
+          answers: block.answers
+        });
+      });
+    });
+
+    const select = document.getElementById('unitSelect');
+    if (BOOK.items.length === 0){
+      select.innerHTML = '<option value="">불러올 문장이 없음</option>';
+      alert('엑셀에서 불러올 문장을 찾지 못했어.');
+      return;
     }
-    if(Object.values(cols).every(i=>i>=0)) return {rowIndex:r,cols};
+
+    select.innerHTML = BOOK.items
+      .map(item => `<option value="${escapeAttr(item.key)}">${escapeHtml(item.label)}</option>`)
+      .join('');
+  }catch(e){
+    console.error(e);
+    alert('엑셀 파일을 불러오지 못했어.');
   }
-  return null;
 }
-function getUnitFromSheetName(name){const m=String(name).match(/^(\d+)/);return m?String(Number(m[1])):'';}
-function findSheetUnit(arr){
-  for(let r=0;r<arr.length;r++) for(let c=0;c<(arr[r]||[]).length;c++){
-    if(norm(arr[r][c])==='unit번호'){
-      const right=val(arr[r],c+1); const below=arr[r+1]?val(arr[r+1],c):'';
-      return right||below;
+
+function parseQuestionSheet(ws){
+  const arr = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:true});
+
+  let headerRow = -1;
+  let cols = {};
+
+  for (let r=0; r<arr.length; r++){
+    const line = arr[r] || [];
+    const unit = findHeaderIndex(line, ['unit 번호','unit번호','유닛번호','단원번호']);
+    const group = findHeaderIndex(line, ['그룹 번호','그룹번호']);
+    const qno = findHeaderIndex(line, ['질문 번호','질문번호','질문index','질문인덱스']);
+    const content = findHeaderIndex(line, ['내용','질문']);
+    const translation = findHeaderIndex(line, ['해석','한글해석','번역']);
+
+    if (unit >= 0 && qno >= 0 && (content >= 0 || translation >= 0)){
+      headerRow = r;
+      cols = {
+        type: findHeaderIndex(line, ['공통형/선택형','유형']),
+        unit,
+        group,
+        qno,
+        level: findHeaderIndex(line, ['난이도','레벨']),
+        content,
+        translation,
+        keyword: findHeaderIndex(line, ['내 답변 키워드','내답변키워드','키워드'])
+      };
+      break;
+    }
+  }
+
+  if (headerRow < 0) return;
+
+  for (let r=headerRow + 1; r<arr.length; r++){
+    const line = arr[r] || [];
+    const unitNo = normalizeKeyPart(getCell(line, cols.unit));
+    const groupNo = normalizeKeyPart(getCell(line, cols.group));
+    const qNo = normalizeKeyPart(getCell(line, cols.qno));
+    const content = getCell(line, cols.content);
+    const translation = getCell(line, cols.translation);
+
+    if (!unitNo || !qNo || (!content && !translation)) continue;
+
+    addQuestionToBook({
+      type: getCell(line, cols.type),
+      unitNo,
+      groupNo,
+      qNo,
+      level: getCell(line, cols.level),
+      content,
+      translation,
+      keyword: getCell(line, cols.keyword)
+    });
+  }
+}
+
+function sheetToFilledArray(ws){
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+  const merges = ws['!merges'] || [];
+
+  function directCell(r, c){
+    const addr = XLSX.utils.encode_cell({r, c});
+    const cell = ws[addr];
+    return cell ? cell.v : '';
+  }
+
+  function mergedCell(r, c){
+    const direct = directCell(r, c);
+    if (direct !== undefined && direct !== null && String(direct).trim() !== '') return direct;
+
+    for (const m of merges){
+      if (r >= m.s.r && r <= m.e.r && c >= m.s.c && c <= m.e.c){
+        const top = directCell(m.s.r, m.s.c);
+        return top ?? '';
+      }
+    }
+    return '';
+  }
+
+  const arr = [];
+  for (let r = range.s.r; r <= range.e.r; r++){
+    const line = [];
+    for (let c = range.s.c; c <= range.e.c; c++){
+      line.push(mergedCell(r, c));
+    }
+    arr.push(line);
+  }
+  return arr;
+}
+
+function getMergedCellKey(ws, r, c){
+  if (c === undefined || c === null || c < 0) return '';
+  const merges = ws['!merges'] || [];
+  for (const m of merges){
+    if (r >= m.s.r && r <= m.e.r && c >= m.s.c && c <= m.e.c){
+      if (m.s.r !== m.e.r || m.s.c !== m.e.c){
+        return `${m.s.r}:${m.e.r}:${m.s.c}:${m.e.c}`;
+      }
     }
   }
   return '';
 }
-function parseQuestionSheet(ws){
- const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:true,defval:''});
- const header=findHeaderRow(arr,{
-   unit:['unit번호','유닛번호'],
-   group:['그룹번호','그룹 번호'],
-   qno:['질문번호','질문 번호'],
-   content:['내용','질문'],
-   trans:['해석','번역']
- });
- if(!header)return {};
 
- // H열 답변 흐름 읽기
- // 1순위: 헤더명 "답변 흐름 / 내 답변 키워드 / 키워드 / 흐름"
- // 2순위: 실제 H열(index 7)
- const headerCells=(arr[header.rowIndex]||[]).map(norm);
- let flowCol=headerCells.findIndex(v=>['답변흐름','내답변키워드','답변키워드','키워드','흐름'].includes(v));
- if(flowCol<0) flowCol=7;
+function parseAnswerSheet(ws, fallbackUnitNo){
+  const arr = sheetToFilledArray(ws);
 
- const res={};
- for(let r=header.rowIndex+1;r<arr.length;r++){
-   const line=arr[r]||[];
-   const unitNo=idCell(line[header.cols.unit]);
-   const groupNo=idCell(line[header.cols.group]);
-   const questionNo=idCell(line[header.cols.qno]);
-   const content=val(line,header.cols.content);
-   const trans=val(line,header.cols.trans);
-   const flow=val(line,flowCol);
-   if(!unitNo&&!groupNo&&!questionNo&&!content&&!trans&&!flow) continue;
-   if(!unitNo||!groupNo||!questionNo) continue;
-   const k=keyOf(unitNo,groupNo,questionNo);
-   res[k]={unitNo,groupNo,questionNo,content,trans,flow};
- }
- return res;
+  let sheetUnitNo = normalizeKeyPart(fallbackUnitNo || '');
+  for (let r=0; r<arr.length; r++){
+    const line = arr[r] || [];
+    for (let c=0; c<line.length; c++){
+      if (normalizeHeader(line[c]) === 'unit번호'){
+        const right = normalizeKeyPart(getCell(line, c+1));
+        const below = arr[r+1] ? normalizeKeyPart(getCell(arr[r+1], c)) : '';
+        sheetUnitNo = right || below || sheetUnitNo;
+        break;
+      }
+    }
+    if (sheetUnitNo) break;
+  }
+
+  let headerRow = -1;
+  let cols = {};
+  for (let r=0; r<arr.length; r++){
+    const line = arr[r] || [];
+    const unit = findHeaderIndex(line, ['unit 번호','unit번호','유닛번호','단원번호']);
+    const group = findHeaderIndex(line, ['그룹 번호','그룹번호']);
+    const qno = findHeaderIndex(line, ['질문 번호','질문번호','질문index','질문 index','질문인덱스']);
+    const ko = findHeaderIndex(line, ['한글','한국어']);
+    const en = findHeaderIndex(line, ['영어','english']);
+    const note = findHeaderIndex(line, ['질문','질문내용','질문 메모','질문메모']);
+
+    // 답변 표는 한글/영어가 반드시 있어야 한다.
+    if (ko >= 0 && en >= 0){
+      headerRow = r;
+      cols = {unit, group, qno, ko, en, note};
+      break;
+    }
+  }
+  if (headerRow < 0) return [];
+
+  const blocks = [];
+  let currentAnswers = [];
+  let currentRefs = [];
+  let blockUnitNo = sheetUnitNo || fallbackUnitNo || '';
+  let blockGroupNo = '';
+
+  function inferGroupNo(unitNo, qNo){
+    const candidates = BOOK.questionsByUnitQ[makeUnitQKey(unitNo, qNo)] || [];
+    const groups = [...new Set(candidates.map(q => normalizeKeyPart(q.groupNo)).filter(Boolean))];
+    return groups.length === 1 ? groups[0] : '';
+  }
+
+  function addRef(unitNo, groupNo, qNo){
+    const u = normalizeKeyPart(unitNo || blockUnitNo || sheetUnitNo || fallbackUnitNo || '');
+    const q = normalizeKeyPart(qNo || '');
+    let g = normalizeKeyPart(groupNo || blockGroupNo || '');
+
+    if (!u || !q) return;
+    if (!g) g = inferGroupNo(u, q);
+
+    currentRefs.push({unitNo:u, groupNo:g, qNo:q});
+  }
+
+  function parseQuestionRefsFromText(text, defaultUnitNo, defaultGroupNo){
+    const t = String(text || '');
+    if (!t.trim()) return [];
+    const refs = [];
+    const seen = new Set();
+
+    function push(unitNo, groupNo, qNo){
+      const u = normalizeKeyPart(unitNo || defaultUnitNo || blockUnitNo || sheetUnitNo || fallbackUnitNo || '');
+      const q = normalizeKeyPart(qNo || '');
+      let g = normalizeKeyPart(groupNo || defaultGroupNo || blockGroupNo || '');
+      if (!u || !q) return;
+      if (!g) g = inferGroupNo(u, q);
+      const key = `${u}__${g}__${q}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      refs.push({unitNo:u, groupNo:g, qNo:q});
+    }
+
+    let m;
+    // U3-G1-Q2, 3-1-2 같은 명확한 번호만 메모에서 읽는다.
+    const triple = /(?:U|Unit)?\s*(\d+)\s*[-_\/ ]+\s*(?:G|Group)?\s*(\d+)\s*[-_\/ ]+\s*(?:Q|Question)?\s*(\d+)/gi;
+    while ((m = triple.exec(t)) !== null) push(m[1], m[2], m[3]);
+
+    const compact = /(?:^|[^0-9])(\d)(\d)(\d)(?:[^0-9]|$)/g;
+    while ((m = compact.exec(t)) !== null) push(m[1], m[2], m[3]);
+
+    return refs;
+  }
+
+  function saveBlock(){
+    if (currentAnswers.length === 0) return;
+
+    blocks.push({
+      unitNo: blockUnitNo || sheetUnitNo || fallbackUnitNo || '',
+      questionRefs: uniqueQuestionRefs(currentRefs),
+      answers: [...currentAnswers]
+    });
+
+    currentAnswers = [];
+    currentRefs = [];
+    blockUnitNo = sheetUnitNo || fallbackUnitNo || '';
+    blockGroupNo = '';
+  }
+
+  for (let r=headerRow + 1; r<arr.length; r++){
+    const line = arr[r] || [];
+
+    const rawUnit = getCell(line, cols.unit);
+    const rawGroup = getCell(line, cols.group);
+    const rawQ = getCell(line, cols.qno);
+    const ko = getCell(line, cols.ko);
+    const en = getCell(line, cols.en);
+    const note = getCell(line, cols.note);
+
+    const emptyLine = !rawUnit && !rawGroup && !rawQ && !ko && !en && !note;
+    if (emptyLine){
+      saveBlock();
+      continue;
+    }
+
+    const rowUnit = normalizeKeyPart(rawUnit || blockUnitNo || sheetUnitNo || fallbackUnitNo || '');
+    const rowGroup = normalizeKeyPart(rawGroup || blockGroupNo || '');
+
+    if (rawUnit) blockUnitNo = normalizeKeyPart(rawUnit);
+    if (rawGroup) blockGroupNo = normalizeKeyPart(rawGroup);
+
+    // 핵심: 질문 번호 컬럼에 값이 있는 모든 줄을 같은 답변 묶음의 질문으로 전부 모은다.
+    // 예: 같은 묶음 안에 3/1/1, 3/1/2가 있으면 둘 다 저장된다.
+    if (rawQ){
+      addRef(rowUnit, rowGroup, rawQ);
+    }
+
+    // 질문 번호 컬럼이 없는 옛 파일만 메모칸에서 U3-G1-Q1 같은 명확한 번호를 보조로 읽는다.
+    // 메모칸의 (1), 1) 같은 표기는 111 오류를 만들 수 있어서 일부러 읽지 않는다.
+    if (cols.qno < 0){
+      parseQuestionRefsFromText(note, rowUnit, rowGroup).forEach(ref => addRef(ref.unitNo, ref.groupNo, ref.qNo));
+    }
+
+    if (ko || en){
+      currentAnswers.push({ko, en});
+    }
+  }
+
+  saveBlock();
+  return blocks;
 }
-function parseAnswerSheet(ws,sheetName){
- const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:true,defval:''});
- const header=findHeaderRow(arr,{
-   unit:['unit번호','유닛번호'],
-   group:['그룹번호','그룹 번호'],
-   qno:['질문번호','질문 번호'],
-   ko:['한글','한국어'],
-   en:['영어','english']
- });
- if(!header)return [];
 
- // 답변 시트의 H열 "답변 흐름" 읽기
- // 헤더명이 있으면 그 열을 쓰고, 못 찾으면 H열(index 7)을 사용한다.
- const headerCells=(arr[header.rowIndex]||[]).map(norm);
- let flowCol=headerCells.findIndex(v=>['답변흐름','내답변키워드','답변키워드','키워드','흐름'].includes(v));
- if(flowCol<0) flowCol=7;
 
- const blocks=[];
- let answers=[];
- let refs=[];
- let flows=[];
- let blockNo=1;
- let lastUnit='';
- let lastGroup='';
- const cols=[header.cols.unit,header.cols.group,header.cols.qno,header.cols.ko,header.cols.en,flowCol];
-
- function addRef(u,g,q){
-   const unitNo=idCell(u||lastUnit);
-   const groupNo=idCell(g||lastGroup);
-   const questionNo=idCell(q);
-   if(!unitNo||!groupNo||!questionNo) return;
-   refs.push({unitNo,groupNo,questionNo});
- }
-
- function addFlow(text){
-   const t=String(text||'').trim();
-   if(!t) return;
-   if(!flows.includes(t)) flows.push(t);
- }
-
- function saveBlock(){
-   if(answers.length===0){
-     refs=[]; flows=[]; lastUnit=''; lastGroup='';
-     return;
-   }
-   blocks.push({
-     sheetName,
-     blockNo:blockNo++,
-     refs:uniqueRefs(refs),
-     answers:[...answers],
-     flows:[...flows]
-   });
-   answers=[];
-   refs=[];
-   flows=[];
-   lastUnit='';
-   lastGroup='';
- }
-
- for(let r=header.rowIndex+1;r<arr.length;r++){
-   const line=arr[r]||[];
-   const isBlank=cols.every(c=>!val(line,c));
-   if(isBlank){saveBlock(); continue;}
-
-   const unitNo=idCell(line[header.cols.unit]);
-   const groupNo=idCell(line[header.cols.group]);
-   const questionNo=idCell(line[header.cols.qno]);
-   const ko=val(line,header.cols.ko);
-   const en=val(line,header.cols.en);
-   const flow=val(line,flowCol);
-
-   if(unitNo) lastUnit=unitNo;
-   if(groupNo) lastGroup=groupNo;
-   if(questionNo) addRef(unitNo,groupNo,questionNo);
-   addFlow(flow);
-
-   if(ko||en){
-     answers.push({ko,en});
-   }
- }
- saveBlock();
- return blocks;
+function itemToPairs(item){
+  return item.answers.map(a => ({ko:a.ko, en:a.en}));
 }
-async function loadWorkbookFile(file){
- if(!file)return;
- stopSpeak();
- try{
-  const data=await file.arrayBuffer();
-  const wb=XLSX.read(data,{type:'array'});
-  BOOK.workbook=wb;
-  BOOK.questions={};
-  BOOK.items=[];
 
-  const qName=wb.SheetNames.find(n=>norm(n)==='0.질문')||wb.SheetNames.find(n=>String(n).includes('질문'));
-  if(qName) BOOK.questions=parseQuestionSheet(wb.Sheets[qName]);
+function makeDisplayQuestionNo(ref, q){
+  // 화면 번호는 반드시 답변 탭에서 읽은 unit/group/question 값을 기준으로 표시한다.
+  // q 객체 기준으로 표시하면 fallback 검색 때 다른 유닛 번호가 섞여 111처럼 보일 수 있다.
+  const unit = normalizeKeyPart(ref.unitNo || (q && q.unitNo) || '');
+  const group = normalizeKeyPart(ref.groupNo || (q && q.groupNo) || '');
+  const qno = normalizeKeyPart(ref.qNo || (q && q.qNo) || '');
+  return `${unit}${group}${qno}.`;
+}
 
-  wb.SheetNames.forEach(sheetName=>{
-    if(sheetName===qName) return;
-    const blocks=parseAnswerSheet(wb.Sheets[sheetName],sheetName);
-    blocks.forEach(b=>{
-      const questions=b.refs.map(ref=>{
-        const found=BOOK.questions[keyOf(ref.unitNo,ref.groupNo,ref.questionNo)];
-        return found || {...ref,content:'질문을 찾지 못했어.',trans:''};
-      });
-      BOOK.items.push({
-        key:`${sheetName}__${b.blockNo}`,
-        label:`${sheetName}_${b.blockNo}`,
-        sheetName,
-        blockNo:b.blockNo,
-        refs:b.refs,
-        questions,
-        answers:b.answers,
-        flows:b.flows || []
+function showQuestions(items){
+  const box = document.getElementById('questionBox');
+  const list = document.getElementById('questionList');
+  const html = [];
+
+  items.forEach(item => {
+    html.push(`<div class="question-group-title">${escapeHtml(item.label)}</div>`);
+
+    //console.log(item);
+
+    const refs = uniqueQuestionRefs(item.questionRefs || []);
+    if (refs.length === 0){
+      html.push(`<div class="question-item">연결된 질문 번호가 없어.</div>`);
+      return;
+    }
+
+    refs.forEach(ref => {
+      const qs = getQuestionsForRef(ref);
+
+      if (qs.length === 0){
+        html.push(`<div class="question-ref-title">${escapeHtml(makeDisplayQuestionNo(ref, null))}</div>`);
+        html.push(`<div class="question-item question-missing">0.질문 탭에서 해당 질문을 찾지 못했어.</div>`);
+        return;
+      }
+
+      qs.forEach(q => {
+        html.push(`<div class="question-ref-title">${escapeHtml(makeDisplayQuestionNo(ref, q))}</div>`);
+        html.push(`<div class="question-item">
+          ${q.content ? `<div class="question-en">${escapeHtml(q.content)}</div>` : ''}
+          ${q.translation ? `<div class="question-ko">${escapeHtml(q.translation)}</div>` : ''}
+          ${[q.type, q.level].filter(Boolean).length ? `<div class="question-meta">${escapeHtml([q.type, q.level].filter(Boolean).join(' · '))}</div>` : ''}
+          ${q.keyword ? `<div class="question-keyword">키워드: ${escapeHtml(q.keyword)}</div>` : ''}
+        </div>`);
       });
     });
   });
 
-  const select=document.getElementById('unitSelect');
-  if(!BOOK.items.length){
-    select.innerHTML='<option value="">불러올 문장이 없음</option>';
-    alert('엑셀에서 불러올 문장을 찾지 못했어.');
+  if (html.length === 0){
+    box.style.display = 'none';
+    list.innerHTML = '';
     return;
   }
-  select.innerHTML=BOOK.items.map(i=>`<option value="${escapeAttr(i.key)}">${escapeHtml(i.label)}</option>`).join('');
- }catch(e){console.error(e);alert('엑셀 파일을 불러오지 못했어.');}
+  list.innerHTML = html.join('');
+  box.style.display = 'block';
 }
-function itemToPairs(item){return item.answers.map(a=>({ko:a.ko,en:a.en}));}
-function showQuestions(items){
- const box=document.getElementById('questionBox'), list=document.getElementById('questionList');
- const html=[];
- let keywordNo=0;
- items.forEach(item=>{
-  html.push(`<div class="question-group-title">${escapeHtml(item.label)}</div>`);
-  if(!item.questions||!item.questions.length){
-    html.push('<div class="question-item">연결된 질문 번호가 없어.</div>');
-  }else{
-    item.questions.forEach(q=>{
-      const no=compactNo(q.unitNo,q.groupNo,q.questionNo);
-      html.push(`<div class="question-item"><div><span class="question-no">${escapeHtml(no)}.</span><span class="q-en">${escapeHtml(q.content||'질문을 찾지 못했어.')}</span></div>${q.trans?`<div class="q-ko">${escapeHtml(q.trans)}</div>`:''}<div class="q-meta">U${escapeHtml(q.unitNo)} G${escapeHtml(q.groupNo)} Q${escapeHtml(q.questionNo)}</div></div>`);
+function hideQuestions(){
+  const box = document.getElementById('questionBox');
+  const list = document.getElementById('questionList');
+  if (box) box.style.display = 'none';
+  if (list) list.innerHTML = '';
+}
+
+function loadSelectedItem(){
+  stopSpeak();
+  const key = document.getElementById('unitSelect').value;
+  const item = BOOK.items.find(v => v.key === key);
+  if (!item){ alert('선택한 묶음을 찾지 못했어.'); return; }
+  showQuestions([item]);
+  setRows(itemToPairs(item));
+}
+function loadAllItems(){
+  stopSpeak();
+  if (BOOK.items.length === 0){ alert('먼저 엑셀 파일을 선택해줘.'); return; }
+  let pairs = [];
+  BOOK.items.forEach(item => { pairs = pairs.concat(itemToPairs(item)); });
+  showQuestions(BOOK.items);
+  setRows(pairs);
+}
+function loadRandomItems(){
+  stopSpeak();
+  if (BOOK.items.length === 0){ alert('먼저 엑셀 파일을 선택해줘.'); return; }
+  const count = Number(document.getElementById('randomCount').value || 10);
+  const picked = shuffleArray(BOOK.items).slice(0, Math.min(count, BOOK.items.length));
+  let pairs = [];
+  picked.forEach(item => { pairs = pairs.concat(itemToPairs(item)); });
+  showQuestions(picked);
+  setRows(pairs);
+}
+function setRows(pairs){
+  document.getElementById('inputText').value = pairs.map(item => `${item.ko}\t${item.en}`).join('\n');
+  parseText();
+}
+function shuffleArray(arr){
+  return arr.map(v => ({value:v, sort:Math.random()})).sort((a,b) => a.sort - b.sort).map(v => v.value);
+}
+
+function sleepWithToken(ms, token){
+  return new Promise(resolve => {
+    const start = Date.now();
+    const tick = () => {
+      if (token !== playToken || !speaking){ resolve(false); return; }
+      const remain = ms - (Date.now() - start);
+      if (remain <= 0){ resolve(true); return; }
+      setTimeout(tick, Math.min(100, remain));
+    };
+    tick();
+  });
+}
+function isHeader(ko,en){
+  return normalizeHeader(ko) === '한글' && normalizeHeader(en) === '영어';
+}
+function loadSample(){
+  document.getElementById('inputText').value = `한글\t영어\n집에 있는 가구에 대해 말해 주세요.\tTell me about the furniture you have in your home.\n가장 좋아하는 가구가 있나요?\tIs there a piece that is your favorite?\n평소에 가구를 어떤 용도로 사용하는지 말해 주세요.\tTell me about how you use your furniture on a typical day.`;
+  parseText();
+}
+function clearAll(){
+  rows = [];
+  document.getElementById('inputText').value = '';
+  renderTable();
+  document.getElementById('pythonCard').style.display = 'none';
+  hideQuestions();
+}
+function parseText(){
+  const text = document.getElementById('inputText').value.trim();
+  if (!text){ alert('데이터를 먼저 넣어줘.'); return; }
+
+  let parsed = [];
+  const lines = text.replace(/\r\n/g,'\n').split('\n').map(x => x.trim()).filter(Boolean);
+  if (lines.some(line => line.includes('\t'))){
+    lines.forEach(line => {
+      const parts = line.split('\t');
+      if (parts.length >= 2) parsed.push([parts[0].trim(), parts.slice(1).join(' ').trim()]);
     });
+  }else{
+    const parts = text.replace(/\r\n/g,'\n').split(/\n+/).map(x => x.trim()).filter(Boolean);
+    for (let i=0; i<parts.length; i+=2) parsed.push([parts[i] || '', parts[i+1] || '']);
   }
 
-  // 답변 시트 H열의 "답변 흐름"은 질문 아래에 한 번만 표시한다.
-  const flowText=(item.flows||[]).map(x=>String(x).trim()).filter(Boolean).join('\n');
-  if(flowText){
-    const flowId=`keyword_${keywordNo++}`;
-    html.push(`<div class="question-item"><button class="keyword-toggle" onclick="toggleKeyword('${flowId}', this)">키워드 보기</button><button class="keyword-copy" onclick="copyKeyword('${flowId}')">복사</button><div id="${flowId}" class="keyword-box">${escapeHtml(flowText)}</div></div>`);
+  rows = [];
+  parsed.forEach(([ko,en]) => {
+    if (!ko || !en) return;
+    if (isHeader(ko,en)) return;
+    rows.push({ko,en,done:false});
+  });
+  renderTable();
+}
+function renderTable(){
+  const tb = document.querySelector('#dataTable tbody');
+  tb.innerHTML = '';
+  rows.forEach((r,i) => {
+    const tr = document.createElement('tr');
+    tr.id = 'row' + i;
+    tr.innerHTML = `<td class="num">${i+1}</td><td>${escapeHtml(r.ko)}</td><td>${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('countInfo').textContent = `${rows.length}개 문장`;
+}
+function getVoice(lang){
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.lang.toLowerCase().startsWith(lang)) || null;
+}
+function speakText(text, lang, rate, token){
+  return new Promise(resolve => {
+    if (!text || token !== playToken || !speaking){ resolve(false); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === 'ko' ? 'ko-KR' : 'en-US';
+    u.rate = Number(rate) || 1;
+    const v = getVoice(lang);
+    if (v) u.voice = v;
+    let finished = false;
+    const finish = (ok=true) => { if (finished) return; finished = true; resolve(ok); };
+    u.onend = () => finish(true);
+    u.onerror = () => finish(false);
+    speechSynthesis.speak(u);
+    const watcher = setInterval(() => {
+      if (finished){ clearInterval(watcher); return; }
+      if (token !== playToken || !speaking){ clearInterval(watcher); finish(false); }
+    }, 100);
+  });
+}
+function markActive(i){
+  currentIndex = i;
+  document.querySelectorAll('tr').forEach(x => x.classList.remove('active'));
+  const tr = document.getElementById('row' + i);
+  if (tr) tr.classList.add('active');
+}
+function clearActive(){
+  document.querySelectorAll('tr').forEach(x => x.classList.remove('active'));
+}
+function markDone(i){
+  const tr = document.getElementById('row' + i);
+  if (tr) tr.classList.add('done');
+}
+async function speakRow(i, mode, token){
+  if (token !== playToken || !rows[i]) return;
+  markActive(i);
+  const r = rows[i];
+  const gap = Number(document.getElementById('pairGapSec').value || 0) * 1000;
+  const koRate = document.getElementById('koRate').value;
+  const enRate = document.getElementById('enRate').value;
+  await speakText(`${i+1}`, 'ko', koRate, token);
+  let ok = await sleepWithToken(500, token);
+  if (!ok || token !== playToken || !speaking) return;
+
+  if (mode === 'ko') await speakText(r.ko, 'ko', koRate, token);
+  else if (mode === 'en') await speakText(r.en, 'en', enRate, token);
+  else if (document.getElementById('orderMode').value === 'ko_en'){
+    await speakText(r.ko, 'ko', koRate, token);
+    if (token !== playToken || !speaking) return;
+    ok = await sleepWithToken(gap, token);
+    if (!ok) return;
+    await speakText(r.en, 'en', enRate, token);
+  }else{
+    await speakText(r.en, 'en', enRate, token);
+    if (token !== playToken || !speaking) return;
+    ok = await sleepWithToken(gap, token);
+    if (!ok) return;
+    await speakText(r.ko, 'ko', koRate, token);
   }
- });
- list.innerHTML=html.join('');
- box.style.display=html.length?'block':'none';
+  if (token !== playToken || !speaking) return;
+  markDone(i);
 }
-function toggleKeyword(id,btn){
- const box=document.getElementById(id);
- if(!box)return;
- const show=box.style.display!=='block';
- box.style.display=show?'block':'none';
- if(btn)btn.textContent=show?'키워드 숨기기':'키워드 보기';
+async function displayRow(lang, btn){
+  const colIndex = lang === 'ko' ? 1 : lang === 'en' ? 2 : -1;
+  if (colIndex < 0) return;
+  const hide = btn.dataset.hide !== '1';
+  document.querySelectorAll('#dataTable tr').forEach(tr => {
+    const cell = tr.children[colIndex];
+    if (!cell) return;
+    if (tr.parentElement.tagName === 'THEAD') return;
+    cell.style.display = hide ? 'none' : '';
+  });
+  btn.dataset.hide = hide ? '1' : '0';
+  btn.textContent = hide ? '보이기' : '숨기기';
 }
-function copyKeyword(id){
- const box=document.getElementById(id);
- if(!box)return;
- navigator.clipboard.writeText(box.textContent||'');
- alert('키워드 복사했어.');
+async function readOne(i,mode){
+  stopSpeak();
+  await sleep(150);
+  const token = ++playToken;
+  speaking = true; paused = false; loopOne = false;
+  await speakRow(i, mode, token);
+  if (token === playToken) speaking = false;
 }
-function hideQuestions(){document.getElementById('questionBox').style.display='none';document.getElementById('questionList').innerHTML='';}
-function setRows(pairs){document.getElementById('inputText').value=pairs.map(i=>`${i.ko}\t${i.en}`).join('\n');parseText();}
-function loadSelectedItem(){stopSpeak();const key=document.getElementById('unitSelect').value;const item=BOOK.items.find(v=>v.key===key);if(!item){alert('선택한 묶음을 찾지 못했어.');return;}showQuestions([item]);setRows(itemToPairs(item));}
-function loadAllItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}showQuestions(BOOK.items);setRows(BOOK.items.flatMap(itemToPairs));}
-function shuffleArray(a){return a.map(v=>({v,s:Math.random()})).sort((x,y)=>x.s-y.s).map(x=>x.v)}
-function loadRandomItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const count=Number(document.getElementById('randomCount').value||10);const picked=shuffleArray(BOOK.items).slice(0,Math.min(count,BOOK.items.length));showQuestions(picked);setRows(picked.flatMap(itemToPairs));}
-function isHeader(ko,en){return norm(ko)==='한글'&&norm(en)==='영어';}
-function loadSample(){document.getElementById('inputText').value=`한글\t영어\n집에 있는 가구에 대해 말해 주세요.\tTell me about the furniture you have in your home.\n가장 좋아하는 가구가 있나요?\tIs there a piece that is your favorite?`;parseText();}
-function clearAll(){rows=[];document.getElementById('inputText').value='';renderTable();document.getElementById('pythonCard').style.display='none';hideQuestions();}
-function parseText(){const text=document.getElementById('inputText').value.trim();if(!text){alert('데이터를 먼저 넣어줘.');return;}const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);rows=[];for(const line of lines){let parts=line.split('\t'); if(parts.length<2)parts=line.split(/ {2,}|,/); if(parts.length>=2){const ko=parts[0].trim(),en=parts.slice(1).join(' ').trim(); if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,done:false});}}
- if(!rows.length){const parts=text.replace(/\r\n/g,'\n').replace(/\t/g,'\n').split(/\n+/).map(x=>x.trim()).filter(Boolean);for(let i=0;i<parts.length;i+=2){const ko=parts[i]||'',en=parts[i+1]||'';if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,done:false});}}
- renderTable();}
-function renderTable(){const tb=document.querySelector('#dataTable tbody');tb.innerHTML='';rows.forEach((r,i)=>{const tr=document.createElement('tr');tr.id='row'+i;tr.innerHTML=`<td class="num">${i+1}</td><td>${escapeHtml(r.ko)}</td><td>${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td>`;tb.appendChild(tr);});document.getElementById('countInfo').textContent=`${rows.length}개 문장`;}
-function getVoice(lang){const voices=speechSynthesis.getVoices();return voices.find(v=>v.lang.toLowerCase().startsWith(lang))||null;}
-function sleepWithToken(ms,token){return new Promise(resolve=>{const start=Date.now();const tick=()=>{if(token!==playToken||!speaking){resolve(false);return;}const remain=ms-(Date.now()-start);if(remain<=0){resolve(true);return;}setTimeout(tick,Math.min(100,remain));};tick();});}
-function speakText(text,lang,rate,token){return new Promise(resolve=>{if(!text||token!==playToken||!speaking){resolve(false);return;}const u=new SpeechSynthesisUtterance(text);u.lang=lang==='ko'?'ko-KR':'en-US';u.rate=Number(rate)||1;const v=getVoice(lang);if(v)u.voice=v;let fin=false;const done=ok=>{if(fin)return;fin=true;resolve(ok)};u.onend=()=>done(true);u.onerror=()=>done(false);speechSynthesis.speak(u);const watcher=setInterval(()=>{if(fin){clearInterval(watcher);return;}if(token!==playToken||!speaking){clearInterval(watcher);done(false);}},100);});}
-function markActive(i){currentIndex=i;document.querySelectorAll('tr').forEach(x=>x.classList.remove('active'));const tr=document.getElementById('row'+i);if(tr)tr.classList.add('active');}
-function clearActive(){document.querySelectorAll('tr').forEach(x=>x.classList.remove('active'));}
-function markDone(i){const tr=document.getElementById('row'+i);if(tr)tr.classList.add('done');}
-async function speakRow(i,mode,token){if(token!==playToken||!rows[i])return;markActive(i);const r=rows[i],gap=Number(document.getElementById('pairGapSec').value||0)*1000,koRate=document.getElementById('koRate').value,enRate=document.getElementById('enRate').value;await speakText(`${i+1}`,'ko',koRate,token);let ok=await sleepWithToken(500,token);if(!ok)return;if(mode==='ko')await speakText(r.ko,'ko',koRate,token);else if(mode==='en')await speakText(r.en,'en',enRate,token);else if(document.getElementById('orderMode').value==='ko_en'){await speakText(r.ko,'ko',koRate,token);ok=await sleepWithToken(gap,token);if(!ok)return;await speakText(r.en,'en',enRate,token);}else{await speakText(r.en,'en',enRate,token);ok=await sleepWithToken(gap,token);if(!ok)return;await speakText(r.ko,'ko',koRate,token);}if(token===playToken&&speaking)markDone(i);}
-async function readOne(i,mode){stopSpeak();await sleep(150);const token=++playToken;speaking=true;paused=false;loopOne=false;await speakRow(i,mode,token);if(token===playToken)speaking=false;}
-async function repeatOne(i){stopSpeak();await sleep(150);const token=++playToken;speaking=true;loopOne=true;while(speaking&&loopOne&&token===playToken){await speakRow(i,'both',token);await sleepWithToken(500,token);}}
-async function readAll(mode){stopSpeak();await sleep(150);const token=++playToken;speaking=true;loopOne=false;const rep=Number(document.getElementById('repeatCount').value||1),gap=Number(document.getElementById('gapSec').value||0)*1000;for(let k=0;k<rep;k++)for(let i=0;i<rows.length;i++){if(!speaking||token!==playToken)return;await speakRow(i,mode,token);if(!speaking||token!==playToken)return;await sleepWithToken(gap,token);}if(token===playToken)speaking=false;}
-async function readRandom(){stopSpeak();await sleep(150);const token=++playToken;speaking=true;const rep=Number(document.getElementById('repeatCount').value||1),gap=Number(document.getElementById('gapSec').value||0)*1000;for(let k=0;k<rep;k++){let arr=shuffleArray([...rows.keys()]);for(const i of arr){if(!speaking||token!==playToken)return;await speakRow(i,'both',token);if(!speaking||token!==playToken)return;await sleepWithToken(gap,token);}}if(token===playToken)speaking=false;}
-function pauseSpeak(){if(speechSynthesis.speaking&&!speechSynthesis.paused){paused=true;speechSynthesis.pause();}}
-function resumeSpeak(){if(paused||speechSynthesis.paused){paused=false;speechSynthesis.resume();}}
-function stopSpeak(){playToken++;speaking=false;loopOne=false;paused=false;currentIndex=0;speechSynthesis.cancel();clearActive();const first=document.getElementById('row0');if(first)first.classList.add('active');}
-function displayRow(lang,btn){const colIndex=lang==='ko'?1:2;const hide=btn.dataset.hide!=='1';document.querySelectorAll('#dataTable tr').forEach(tr=>{if(tr.parentElement.tagName==='THEAD')return;const cell=tr.children[colIndex];if(cell)cell.style.display=hide?'none':'';});btn.dataset.hide=hide?'1':'0';btn.textContent=hide?'보이기':'숨기기';}
-document.getElementById('fileInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;const name=file.name.toLowerCase();if(name.endsWith('.txt')||name.endsWith('.csv')){document.getElementById('inputText').value=await file.text();parseText();return;}const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});rows=[];arr.forEach(line=>{const ko=val(line,0),en=val(line,1);if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,done:false});});document.getElementById('inputText').value=rows.map(r=>`${r.ko}\t${r.en}`).join('\n');renderTable();});
-function rateToEdge(v){const n=Number(v||1),pct=Math.round((n-1)*100);return pct===0?'+0%':pct>0?`+${pct}%`:`${pct}%`;}
-function getPythonDataBlock(){return rows.map(r=>`    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n');}
-function setPythonCode(code,mode){currentPythonMode=mode;document.getElementById('pythonCode').textContent=code;document.getElementById('pythonCard').style.display='block';return code;}
-function baseSettings(){return{base:document.getElementById('baseName').value||'opic_practice',repeat:Number(document.getElementById('repeatCount').value||1),random:document.getElementById('pythonRandom').checked,koRate:rateToEdge(document.getElementById('koRate').value),enRate:rateToEdge(document.getElementById('enRate').value),data:getPythonDataBlock()};}
-function generatePython(mode='both'){if(!rows.length){alert('먼저 표를 생성해줘.');return '';}const s=baseSettings();let code='';if(mode==='both')code=["# pip install edge-tts","import asyncio","import random","from pathlib import Path","import edge_tts","",`BASE_NAME = ${pyStr(s.base)}`,`REPEAT_COUNT = ${s.repeat}`,`RANDOM_ORDER = ${s.random?'True':'False'}`,`KO_VOICE = "ko-KR-SunHiNeural"`,`EN_VOICE = "en-US-JennyNeural"`,`KO_RATE = ${pyStr(s.koRate)}`,`EN_RATE = ${pyStr(s.enRate)}`,"DATA = [",s.data,"]","out_dir = Path(BASE_NAME)","out_dir.mkdir(exist_ok=True)","async def make_mp3(text, voice, rate, path):","    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)","    await communicate.save(str(path))","async def main():","    sequence = list(DATA)","    clip_no = 1","    for _ in range(REPEAT_COUNT):","        if RANDOM_ORDER:","            random.shuffle(sequence)","        for ko, en in sequence:","            no = f'{clip_no:03d}'","            await make_mp3(ko, KO_VOICE, KO_RATE, out_dir / f'{no}_ko.mp3')","            await make_mp3(en, EN_VOICE, EN_RATE, out_dir / f'{no}_en.mp3')","            print(f'saved {no}')","            clip_no += 1","    print('완료!')","if __name__ == '__main__':","    asyncio.run(main())"].join('\n');else{const isKo=mode==='ko';code=["# pip install edge-tts","import asyncio","from pathlib import Path","import edge_tts","",`BASE_NAME = ${pyStr(s.base)}`,`SELECT_TXT = ${pyStr(mode)}`,`VOICE = ${pyStr(isKo?'ko-KR-SunHiNeural':'en-US-JennyNeural')}`,`RATE = ${pyStr(isKo?s.koRate:s.enRate)}`,"DATA = [",s.data,"]","out_dir = Path(BASE_NAME)","out_dir.mkdir(exist_ok=True)","async def make_mp3(text, voice, rate, path):","    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)","    await communicate.save(str(path))","    print(f'생성 완료: {path}')","async def main():",isKo?"    final_text = ' '.join([ko for ko, en in DATA])":"    final_text = ' '.join([en for ko, en in DATA])",`    await make_mp3(final_text, VOICE, RATE, out_dir / ${pyStr(isKo?'ko.mp3':'en.mp3')})`,"if __name__ == '__main__':","    asyncio.run(main())"].join('\n');}return setPythonCode(code,mode);}
-function copyPython(){let code=document.getElementById('pythonCode').textContent||generatePython(currentPythonMode);if(!code)return;navigator.clipboard.writeText(code);alert('코드 복사했어.');}
-function downloadPython(){let code=document.getElementById('pythonCode').textContent||generatePython(currentPythonMode);if(!code)return;const suffix=currentPythonMode==='ko'?'_ko_onefile':currentPythonMode==='en'?'_en_onefile':'_sentence_files';const blob=new Blob([code],{type:'text/x-python'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(document.getElementById('baseName').value||'opic_practice')+suffix+'.py';a.click();URL.revokeObjectURL(a.href);}
-</script>
-</body>
-</html>
+async function repeatOne(i){
+  stopSpeak();
+  await sleep(150);
+  const token = ++playToken;
+  speaking = true; paused = false; loopOne = true;
+  while (speaking && loopOne && token === playToken){
+    await speakRow(i, 'both', token);
+    if (token !== playToken || !speaking) break;
+    await sleepWithToken(500, token);
+  }
+}
+async function readAll(mode){
+  stopSpeak();
+  await sleep(150);
+  const token = ++playToken;
+  speaking = true; paused = false; loopOne = false;
+  const rep = Number(document.getElementById('repeatCount').value || 1);
+  const gap = Number(document.getElementById('gapSec').value || 0) * 1000;
+  for (let k=0; k<rep; k++){
+    for (let i=0; i<rows.length; i++){
+      if (!speaking || token !== playToken) return;
+      await speakRow(i, mode, token);
+      if (!speaking || token !== playToken) return;
+      await sleepWithToken(gap, token);
+    }
+  }
+  if (token === playToken) speaking = false;
+}
+async function readRandom(){
+  stopSpeak();
+  await sleep(150);
+  const token = ++playToken;
+  speaking = true; paused = false; loopOne = false;
+  const rep = Number(document.getElementById('repeatCount').value || 1);
+  const gap = Number(document.getElementById('gapSec').value || 0) * 1000;
+  for (let k=0; k<rep; k++){
+    let arr = [...rows.keys()].sort(() => Math.random() - 0.5);
+    for (const i of arr){
+      if (!speaking || token !== playToken) return;
+      await speakRow(i, 'both', token);
+      if (!speaking || token !== playToken) return;
+      await sleepWithToken(gap, token);
+    }
+  }
+  if (token === playToken) speaking = false;
+}
+function pauseSpeak(){
+  if (speechSynthesis.speaking && !speechSynthesis.paused){
+    paused = true;
+    speechSynthesis.pause();
+  }
+}
+function resumeSpeak(){
+  if (paused || speechSynthesis.paused){
+    paused = false;
+    speechSynthesis.resume();
+  }
+}
+function stopSpeak(){
+  playToken++;
+  speaking = false;
+  loopOne = false;
+  paused = false;
+  currentIndex = 0;
+  speechSynthesis.cancel();
+  clearActive();
+  const first = document.getElementById('row0');
+  if (first) first.classList.add('active');
+}
+
+document.getElementById('fileInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.txt') || name.endsWith('.csv')){
+    const text = await file.text();
+    document.getElementById('inputText').value = text;
+    parseText();
+    return;
+  }
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data, {type:'array'});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const arr = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:false});
+  rows = [];
+  arr.forEach(line => {
+    const ko = String(line[0] || '').trim();
+    const en = String(line[1] || '').trim();
+    if (!ko || !en) return;
+    if (isHeader(ko,en)) return;
+    rows.push({ko,en,done:false});
+  });
+  document.getElementById('inputText').value = rows.map(r => `${r.ko}\t${r.en}`).join('\n');
+  renderTable();
+});
+
+function pyStr(s){ return JSON.stringify(String(s)); }
+function getPythonDataBlock(){ return rows.map(r => `    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n'); }
+function rateToEdge(v){
+  const n = Number(v || 1);
+  const pct = Math.round((n - 1) * 100);
+  if (pct === 0) return '+0%';
+  return pct > 0 ? `+${pct}%` : `${pct}%`;
+}
+function setPythonCode(code, mode){
+  currentPythonMode = mode;
+  document.getElementById('pythonCode').textContent = code;
+  document.getElementById('pythonCard').style.display = 'block';
+  return code;
+}
+function baseSettings(){
+  return {
+    base: document.getElementById('baseName').value || 'opic_practice',
+    order: document.getElementById('orderMode').value,
+    repeat: Number(document.getElementById('repeatCount').value || 1),
+    random: document.getElementById('pythonRandom').checked,
+    koRate: rateToEdge(document.getElementById('koRate').value),
+    enRate: rateToEdge(document.getElementById('enRate').value),
+    data: getPythonDataBlock()
+  };
+}
+function generatePython(mode='both'){
+  if (rows.length === 0){ alert('먼저 표를 생성해줘.'); return ''; }
+  const s = baseSettings();
+  if (mode === 'ko' || mode === 'en'){
+    const select = mode;
+    return setPythonCode([
+      '# pip install edge-tts',
+      'import asyncio',
+      'from pathlib import Path',
+      'import edge_tts',
+      '',
+      `BASE_NAME = ${pyStr(s.base)}`,
+      `SELECT_TXT = ${pyStr(select)}`,
+      'KO_VOICE = "ko-KR-SunHiNeural"',
+      'EN_VOICE = "en-US-JennyNeural"',
+      `KO_RATE = ${pyStr(s.koRate)}`,
+      `EN_RATE = ${pyStr(s.enRate)}`,
+      'DATA = [',
+      s.data,
+      ']',
+      'out_dir = Path(BASE_NAME)',
+      'out_dir.mkdir(exist_ok=True)',
+      '',
+      'async def make_mp3(text, voice, rate, path):',
+      '    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)',
+      '    await communicate.save(str(path))',
+      '    print(f"생성 완료: {path}")',
+      '',
+      'async def main():',
+      '    final_ko_text = " ".join([ko for ko, en in DATA])',
+      '    final_en_text = " ".join([en for ko, en in DATA])',
+      '    if SELECT_TXT == "ko":',
+      '        await make_mp3(final_ko_text, KO_VOICE, KO_RATE, out_dir / "ko.mp3")',
+      '    elif SELECT_TXT == "en":',
+      '        await make_mp3(final_en_text, EN_VOICE, EN_RATE, out_dir / "en.mp3")',
+      '    else:',
+      '        print("SELECT_TXT 값이 잘못되었습니다. ko / en 중 하나로 설정하세요.")',
+      '',
+      'if __name__ == "__main__":',
+      '    asyncio.run(main())'
+    ].join('\n'), mode);
+  }
+
+  return setPythonCode([
+    '# pip install edge-tts',
+    'import asyncio',
+    'import random',
+    'from pathlib import Path',
+    'import edge_tts',
+    '',
+    `BASE_NAME = ${pyStr(s.base)}`,
+    `ORDER = ${pyStr(s.order)}`,
+    `REPEAT_COUNT = ${s.repeat}`,
+    `RANDOM_ORDER = ${s.random ? 'True' : 'False'}`,
+    'KO_VOICE = "ko-KR-SunHiNeural"',
+    'EN_VOICE = "en-US-JennyNeural"',
+    `KO_RATE = ${pyStr(s.koRate)}`,
+    `EN_RATE = ${pyStr(s.enRate)}`,
+    'DATA = [',
+    s.data,
+    ']',
+    'out_dir = Path(BASE_NAME)',
+    'out_dir.mkdir(exist_ok=True)',
+    '',
+    'async def make_mp3(text, voice, rate, path):',
+    '    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)',
+    '    await communicate.save(str(path))',
+    '',
+    'async def main():',
+    '    sequence = list(DATA)',
+    '    if RANDOM_ORDER:',
+    '        random.shuffle(sequence)',
+    '    clip_no = 1',
+    '    for repeat_index in range(REPEAT_COUNT):',
+    '        for ko, en in sequence:',
+    '            no = f"{clip_no:03d}"',
+    '            ko_file = out_dir / f"{no}_ko.mp3"',
+    '            en_file = out_dir / f"{no}_en.mp3"',
+    '            if ORDER == "ko_en":',
+    '                await make_mp3(ko, KO_VOICE, KO_RATE, ko_file)',
+    '                await make_mp3(en, EN_VOICE, EN_RATE, en_file)',
+    '            else:',
+    '                await make_mp3(en, EN_VOICE, EN_RATE, en_file)',
+    '                await make_mp3(ko, KO_VOICE, KO_RATE, ko_file)',
+    '            print(f"saved {no}: {ko_file.name}, {en_file.name}")',
+    '            clip_no += 1',
+    '    print("완료!")',
+    '',
+    'if __name__ == "__main__":',
+    '    asyncio.run(main())'
+  ].join('\n'), mode);
+}
+function copyPython(){
+  let code = document.getElementById('pythonCode').textContent;
+  if (!code) code = generatePython(currentPythonMode);
+  if (!code) return;
+  navigator.clipboard.writeText(code);
+  alert('코드 복사했어.');
+}
+function downloadPython(){
+  let code = document.getElementById('pythonCode').textContent;
+  if (!code) code = generatePython(currentPythonMode);
+  if (!code) return;
+  const suffix = currentPythonMode === 'ko' ? '_ko_onefile' : currentPythonMode === 'en' ? '_en_onefile' : '_sentence_files';
+  const blob = new Blob([code], {type:'text/x-python'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (document.getElementById('baseName').value || 'opic_practice') + suffix + '.py';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
