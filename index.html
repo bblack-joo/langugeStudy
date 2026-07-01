@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}.wrap{max-width:1400px;margin:0 auto;padding:18px}h1{font-size:24px;margin:8px 0 14px}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}textarea{width:100%;height:150px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:10px;font-size:15px;line-height:1.45}button{border:0;border-radius:9px;padding:9px 12px;margin:4px;background:#2f6fed;color:white;font-weight:700;cursor:pointer}button.secondary{background:#555}button.green{background:#138a4d}button.orange{background:#e57920}button.red{background:#d93f3f}button.gray{background:#777}button.small{padding:6px 9px;font-size:13px;margin:2px}input,select{padding:7px;border:1px solid #ccc;border-radius:8px;margin:4px}label{display:inline-flex;align-items:center;gap:4px;margin:5px 10px 5px 0;font-size:14px}.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.book-row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}.book-name{width:90px;font-weight:800;font-size:15px}.book-row select{min-width:260px}.hint{font-size:13px;color:#666;margin-top:6px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #ddd;padding:6px 7px;vertical-align:top;font-size:14px}th{background:#eef3ff}tr.active{background:#fff6c9}tr.done{background:#edf9ef}.check-col{width:34px;text-align:center}.forget-check{width:18px;height:18px;accent-color:#15803d}.num{width:42px;text-align:center;color:#666}.actions{width:170px}.kr{width:22%}.en{width:30%}pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}.random-count{min-width:110px;background:#fffaf3;border:1px solid #f0b36a}.question-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px;margin:10px 0;line-height:1.5}.question-group-title{margin-top:10px;color:#166534;font-weight:800}.question-item{margin:8px 0;color:#14532d}.question-no{display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 6px;font-weight:900;margin-right:4px}.q-en{font-weight:800}.q-ko{display:none;margin-top:6px;padding:8px 10px;background:#f8fafc;border:1px solid #dbeafe;border-radius:8px;color:#1e3a8a}.ko-toggle{background:#2563eb;padding:6px 9px;font-size:12px;margin:6px 4px 3px 0}.q-meta{font-size:12px;color:#666;margin-top:2px}.keyword-toggle{background:#0f766e;padding:6px 9px;font-size:12px;margin:6px 0 3px}.keyword-box{display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:10px;padding:9px;margin-top:5px;color:#164e63;white-space:pre-wrap}.keyword-copy{background:#0891b2;padding:5px 8px;font-size:12px;margin-left:5px}.keyword-gap-label{display:inline-flex;align-items:center;gap:4px;margin:4px 6px;font-size:12px;color:#164e63}.keyword-gap-input{width:58px;padding:5px;border:1px solid #67e8f9;border-radius:7px;background:#fff}
-.practice-cell{width:38%;min-width:360px}.practice-input,.question-practice-input{width:100%;min-height:70px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical;background:#fff}.question-practice-input{min-height:58px}.important-text{color:#15803d!important;font-weight:900}.practice-tools{margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.practice-cell.practice-hidden{display:none!important}.question-practice{margin-top:8px}.question-practice-label{font-size:12px;color:#475569;font-weight:700;margin-bottom:3px}tr.only-forget-hidden{display:none!important}
+.practice-cell{width:38%;min-width:360px}.practice-input,.question-practice-input{width:100%;min-height:70px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical;background:#fff}.question-practice-input{min-height:58px}.important-text{color:#15803d!important;font-weight:900}.core-text{font-weight:900}.practice-tools{margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.practice-cell.practice-hidden{display:none!important}.question-practice{margin-top:8px}.question-practice-label{font-size:12px;color:#475569;font-weight:700;margin-bottom:3px}tr.only-forget-hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -21,14 +21,19 @@ body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
     <input type="file" id="bookExcelInput" accept=".xlsx,.xls" onchange="loadWorkbookFile(this.files[0])">
     <span class="book-name">Unit</span>
     <select id="unitFilter" onchange="renderItemSelect()"><option value="">전체</option></select>
+    <span class="book-name">문장</span>
+    <select id="itemFilter" onchange="renderItemSelect()">
+      <option value="all">전체보기</option>
+      <option value="important">중요 답변 보기</option>
+    </select>
     <span class="book-name">묶음</span>
     <select id="unitSelect"><option value="">엑셀 파일을 먼저 선택</option></select>
     <button onclick="loadSelectedItem()">선택 불러오기</button>
-    <button class="secondary" onclick="loadAllItems()">전체 불러오기</button>
+    <button class="secondary" onclick="loadAllItems()">전체 불러오기</button><button class="green" onclick="loadAllImportantAnswers()">전체에서 중요 답변만 불러오기</button>
     <select id="randomCount" class="random-count"><option value="5">랜덤 5개</option><option value="10" selected>랜덤 10개</option><option value="20">랜덤 20개</option></select>
     <button class="orange" onclick="loadRandomItems()">랜덤 불러오기</button>
   </div>
-  <div class="hint">답변 탭은 헤더 아래에서 빈 줄 전까지 한 묶음으로 읽어. 같은 묶음 안의 unit/그룹/질문 번호는 전부 질문 박스에 표시해.</div>
+  <div class="hint">답변 탭은 헤더 아래에서 빈 줄 전까지 한 묶음으로 읽어. Unit과 문장 필터로 전체보기/중요 답변 보기를 바꿀 수 있어.</div>
 </div>
 
 <div class="card">
@@ -153,6 +158,12 @@ function parseAnswerSheet(ws,sheetName){
  let notMemorizedCol=headerCells.findIndex(v=>['안외워짐','안외움','미암기','안외워진','안외워짐체크'].includes(v));
  if(notMemorizedCol<0 && importanceCol>=0) notMemorizedCol=importanceCol+1;
 
+ // 안외워짐 옆의 "핵심 문장" 읽기
+ // 1순위: 헤더명 "핵심 문장 / 핵심문장 / 핵심"
+ // 2순위: 안외워짐 열 바로 다음 열
+ let coreCol=headerCells.findIndex(v=>['핵심문장','핵심','core'].includes(v));
+ if(coreCol<0 && notMemorizedCol>=0) coreCol=notMemorizedCol+1;
+
  const blocks=[];
  let answers=[];
  let refs=[];
@@ -160,7 +171,7 @@ function parseAnswerSheet(ws,sheetName){
  let blockNo=1;
  let lastUnit='';
  let lastGroup='';
- const cols=[header.cols.unit,header.cols.group,header.cols.qno,header.cols.ko,header.cols.en,flowCol,importanceCol,notMemorizedCol];
+ const cols=[header.cols.unit,header.cols.group,header.cols.qno,header.cols.ko,header.cols.en,flowCol,importanceCol,notMemorizedCol,coreCol];
 
  function addRef(u,g,q){
    const unitNo=idCell(u||lastUnit);
@@ -210,6 +221,8 @@ function parseAnswerSheet(ws,sheetName){
    const important=String(importance).trim()==='1';
    const notMemorizedValue=val(line,notMemorizedCol);
    const notMemorized=String(notMemorizedValue).trim()==='1';
+   const coreValue=val(line,coreCol);
+   const core=String(coreValue).trim()==='1';
 
    if(unitNo) lastUnit=unitNo;
    if(groupNo) lastGroup=groupNo;
@@ -217,7 +230,7 @@ function parseAnswerSheet(ws,sheetName){
    addFlow(flow);
 
    if(ko||en){
-     answers.push({ko,en,important,notMemorized});
+     answers.push({ko,en,important,notMemorized,core});
    }
  }
  saveBlock();
@@ -273,6 +286,14 @@ function getFilteredItems(){
  if(!unit) return BOOK.items;
  return BOOK.items.filter(item=>item.sheetName===unit);
 }
+function getSelectableItems(){
+ const mode=document.getElementById('itemFilter')?.value || 'all';
+ const list=getFilteredItems();
+ if(mode==='important'){
+   return list.filter(item => (item.answers||[]).some(a => !!a.important));
+ }
+ return list;
+}
 function renderUnitFilter(){
  const unitSel=document.getElementById('unitFilter');
  if(!unitSel) return;
@@ -282,19 +303,19 @@ function renderUnitFilter(){
 function renderItemSelect(){
  const select=document.getElementById('unitSelect');
  if(!select) return;
- const list=getFilteredItems();
+ const list=getSelectableItems();
  if(!BOOK.items.length){
    select.innerHTML='<option value="">엑셀 파일을 먼저 선택</option>';
    return;
  }
  if(!list.length){
-   select.innerHTML='<option value="">선택한 Unit에 문장이 없음</option>';
+   select.innerHTML='<option value="">조건에 맞는 묶음이 없음</option>';
    return;
  }
  select.innerHTML=list.map(i=>`<option value="${escapeAttr(i.key)}">${escapeHtml(i.label)}</option>`).join('');
 }
 
-function itemToPairs(item){return item.answers.map(a=>({ko:a.ko,en:a.en,important:!!a.important,notMemorized:!!a.notMemorized}));}
+function itemToPairs(item){return item.answers.map(a=>({ko:a.ko,en:a.en,important:!!a.important,notMemorized:!!a.notMemorized,core:!!a.core}));}
 function showQuestions(items){
  currentQuestionItems=items||[];
  const box=document.getElementById('questionBox'), list=document.getElementById('questionList');
@@ -410,16 +431,30 @@ function copyKeyword(id){
  alert('키워드 복사했어.');
 }
 function hideQuestions(){currentQuestionItems=[];document.getElementById('questionBox').style.display='none';document.getElementById('questionList').innerHTML='';}
-function setRows(pairs){document.getElementById('inputText').value=pairs.map(i=>`${i.ko}\t${i.en}`).join('\n');rows=pairs.map(i=>({ko:i.ko||'',en:i.en||'',important:!!i.important,notMemorized:!!i.notMemorized,done:false})).filter(i=>i.ko||i.en);renderTable();}
+function setRows(pairs){document.getElementById('inputText').value=pairs.map(i=>`${i.ko}\t${i.en}`).join('\n');rows=pairs.map(i=>({ko:i.ko||'',en:i.en||'',important:!!i.important,notMemorized:!!i.notMemorized,core:!!i.core,done:false})).filter(i=>i.ko||i.en);renderTable();}
 function loadSelectedItem(){stopSpeak();const key=document.getElementById('unitSelect').value;const item=BOOK.items.find(v=>v.key===key);if(!item){alert('선택한 묶음을 찾지 못했어.');return;}showQuestions([item]);setRows(itemToPairs(item));}
-function loadAllItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const list=getFilteredItems();if(!list.length){alert('선택한 Unit에 불러올 문장이 없어.');return;}showQuestions(list);setRows(list.flatMap(itemToPairs));}
+function loadAllItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const list=getSelectableItems();if(!list.length){alert('선택한 조건에 불러올 문장이 없어.');return;}showQuestions(list);setRows(list.flatMap(itemToPairs));}
+function loadAllImportantAnswers(){
+ stopSpeak();
+ if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}
+ const list=BOOK.items.filter(item => (item.answers||[]).some(a => !!a.important));
+ if(!list.length){alert('중요 답변이 없어.');return;}
+ const pairs=[];
+ list.forEach(item => {
+   (item.answers||[]).forEach(a => {
+     if(a.important) pairs.push({ko:a.ko,en:a.en,important:!!a.important,notMemorized:!!a.notMemorized,core:!!a.core});
+   });
+ });
+ showQuestions(list);
+ setRows(pairs);
+}
 function shuffleArray(a){return a.map(v=>({v,s:Math.random()})).sort((x,y)=>x.s-y.s).map(x=>x.v)}
-function loadRandomItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const list=getFilteredItems();if(!list.length){alert('선택한 Unit에 불러올 문장이 없어.');return;}const count=Number(document.getElementById('randomCount').value||10);const picked=shuffleArray(list).slice(0,Math.min(count,list.length));showQuestions(picked);setRows(picked.flatMap(itemToPairs));}
+function loadRandomItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const list=getSelectableItems();if(!list.length){alert('선택한 조건에 불러올 문장이 없어.');return;}const count=Number(document.getElementById('randomCount').value||10);const picked=shuffleArray(list).slice(0,Math.min(count,list.length));showQuestions(picked);setRows(picked.flatMap(itemToPairs));}
 function isHeader(ko,en){return norm(ko)==='한글'&&norm(en)==='영어';}
 function loadSample(){document.getElementById('inputText').value=`한글\t영어\n집에 있는 가구에 대해 말해 주세요.\tTell me about the furniture you have in your home.\n가장 좋아하는 가구가 있나요?\tIs there a piece that is your favorite?`;parseText();}
 function clearAll(){rows=[];document.getElementById('inputText').value='';renderTable();document.getElementById('pythonCard').style.display='none';hideQuestions();}
-function parseText(){const text=document.getElementById('inputText').value.trim();if(!text){alert('데이터를 먼저 넣어줘.');return;}const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);rows=[];for(const line of lines){let parts=line.split('\t'); if(parts.length<2)parts=line.split(/ {2,}|,/); if(parts.length>=2){const ko=parts[0].trim(),en=parts.slice(1).join(' ').trim(); if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,done:false});}}
- if(!rows.length){const parts=text.replace(/\r\n/g,'\n').replace(/\t/g,'\n').split(/\n+/).map(x=>x.trim()).filter(Boolean);for(let i=0;i<parts.length;i+=2){const ko=parts[i]||'',en=parts[i+1]||'';if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,done:false});}}
+function parseText(){const text=document.getElementById('inputText').value.trim();if(!text){alert('데이터를 먼저 넣어줘.');return;}const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);rows=[];for(const line of lines){let parts=line.split('\t'); if(parts.length<2)parts=line.split(/ {2,}|,/); if(parts.length>=2){const ko=parts[0].trim(),en=parts.slice(1).join(' ').trim(); if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,core:false,done:false});}}
+ if(!rows.length){const parts=text.replace(/\r\n/g,'\n').replace(/\t/g,'\n').split(/\n+/).map(x=>x.trim()).filter(Boolean);for(let i=0;i<parts.length;i+=2){const ko=parts[i]||'',en=parts[i+1]||'';if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,core:false,done:false});}}
  renderTable();}
 function renderTable(){
  const tb=document.querySelector('#dataTable tbody');
@@ -429,7 +464,8 @@ function renderTable(){
   tr.id='row'+i;
   if(showOnlyNotMemorized && !r.notMemorized) tr.classList.add('only-forget-hidden');
   const pKey=getPracticeKey(r);
-  tr.innerHTML=`<td class="check-col"><input type="checkbox" class="forget-check" ${r.notMemorized?'checked':''} disabled></td><td class="num">${i+1}</td><td class="${r.important?'important-text':''}">${escapeHtml(r.ko)}</td><td class="${r.important?'important-text':''}">${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td><td class="practice-cell practice-hidden"><textarea class="practice-input" data-key="${escapeAttr(pKey)}" placeholder="" oninput="savePracticeInput(this)" onkeydown="practiceKeydown(event,this)">${escapeHtml(getSavedPractice(pKey))}</textarea></td>`;
+  const textClass=`${r.important?'important-text ':''}${r.core?'core-text':''}`.trim();
+  tr.innerHTML=`<td class="check-col"><input type="checkbox" class="forget-check" ${r.notMemorized?'checked':''} disabled></td><td class="num">${i+1}</td><td class="${textClass}">${escapeHtml(r.ko)}</td><td class="${textClass}">${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td><td class="practice-cell practice-hidden"><textarea class="practice-input" data-key="${escapeAttr(pKey)}" placeholder="" oninput="savePracticeInput(this)" onkeydown="practiceKeydown(event,this)">${escapeHtml(getSavedPractice(pKey))}</textarea></td>`;
   tb.appendChild(tr);
  });
  updateCountInfo();
@@ -488,7 +524,7 @@ function stopSpeak(){playToken++;speaking=false;loopOne=false;paused=false;curre
 function displayRow(lang,btn){const colIndex=lang==='ko'?2:3;const hide=btn.dataset.hide!=='1';document.querySelectorAll('#dataTable tr').forEach(tr=>{if(tr.parentElement.tagName==='THEAD')return;const cell=tr.children[colIndex];if(cell)cell.style.display=hide?'none':'';});btn.dataset.hide=hide?'1':'0';btn.textContent=hide?'보이기':'숨기기';}
 function applyPracticeVisibility(){document.querySelectorAll('.practice-cell').forEach(cell=>{cell.classList.toggle('practice-hidden',!practiceVisible);});const btn=document.getElementById('practiceToggleBtn');if(btn)btn.textContent=practiceVisible?'✍ 연습칸 숨기기':'✍ 연습칸 보이기';}
 function togglePracticeColumn(btn){practiceVisible=!practiceVisible;applyPracticeVisibility();if(practiceVisible)setTimeout(refreshPracticeHeights,0);}
-document.getElementById('fileInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;const name=file.name.toLowerCase();if(name.endsWith('.txt')||name.endsWith('.csv')){document.getElementById('inputText').value=await file.text();parseText();return;}const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});rows=[];arr.forEach(line=>{const ko=val(line,0),en=val(line,1);if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,done:false});});document.getElementById('inputText').value=rows.map(r=>`${r.ko}\t${r.en}`).join('\n');renderTable();});
+document.getElementById('fileInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;const name=file.name.toLowerCase();if(name.endsWith('.txt')||name.endsWith('.csv')){document.getElementById('inputText').value=await file.text();parseText();return;}const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});rows=[];arr.forEach(line=>{const ko=val(line,0),en=val(line,1);if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,core:false,done:false});});document.getElementById('inputText').value=rows.map(r=>`${r.ko}\t${r.en}`).join('\n');renderTable();});
 function rateToEdge(v){const n=Number(v||1),pct=Math.round((n-1)*100);return pct===0?'+0%':pct>0?`+${pct}%`:`${pct}%`;}
 function getPythonDataBlock(){return rows.map(r=>`    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n');}
 function setPythonCode(code,mode){currentPythonMode=mode;document.getElementById('pythonCode').textContent=code;document.getElementById('pythonCard').style.display='block';return code;}
