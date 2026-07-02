@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f6f7fb;color:#222}.wrap{max-width:1400px;margin:0 auto;padding:18px}h1{font-size:24px;margin:8px 0 14px}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.04)}textarea{width:100%;height:150px;box-sizing:border-box;border:1px solid #ccc;border-radius:10px;padding:10px;font-size:15px;line-height:1.45}button{border:0;border-radius:9px;padding:9px 12px;margin:4px;background:#2f6fed;color:white;font-weight:700;cursor:pointer}button.secondary{background:#555}button.green{background:#138a4d}button.orange{background:#e57920}button.red{background:#d93f3f}button.gray{background:#777}button.small{padding:6px 9px;font-size:13px;margin:2px}input,select{padding:7px;border:1px solid #ccc;border-radius:8px;margin:4px}label{display:inline-flex;align-items:center;gap:4px;margin:5px 10px 5px 0;font-size:14px}.row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.book-row{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}.book-name{width:90px;font-weight:800;font-size:15px}.book-row select{min-width:260px}.hint{font-size:13px;color:#666;margin-top:6px}table{width:100%;border-collapse:collapse;background:#fff}th,td{border:1px solid #ddd;padding:6px 7px;vertical-align:top;font-size:14px}th{background:#eef3ff}tr.active{background:#fff6c9}tr.done{background:#edf9ef}.check-col{width:34px;text-align:center}.forget-check{width:18px;height:18px;accent-color:#15803d}.num{width:42px;text-align:center;color:#666}.actions{width:170px}.kr{width:22%}.en{width:30%}pre{white-space:pre-wrap;background:#111;color:#e6e6e6;padding:12px;border-radius:10px;max-height:390px;overflow:auto;font-size:13px}.random-count{min-width:110px;background:#fffaf3;border:1px solid #f0b36a}.question-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px;margin:10px 0;line-height:1.5}.question-group-title{margin-top:10px;color:#166534;font-weight:800}.question-item{margin:8px 0;color:#14532d}.question-no{display:inline-block;background:#dcfce7;border-radius:6px;padding:2px 6px;font-weight:900;margin-right:4px}.q-en{font-weight:800}.q-ko{display:none;margin-top:6px;padding:8px 10px;background:#f8fafc;border:1px solid #dbeafe;border-radius:8px;color:#1e3a8a}.ko-toggle{background:#2563eb;padding:6px 9px;font-size:12px;margin:6px 4px 3px 0}.q-meta{font-size:12px;color:#666;margin-top:2px}.keyword-toggle{background:#0f766e;padding:6px 9px;font-size:12px;margin:6px 0 3px}.keyword-box{display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:10px;padding:9px;margin-top:5px;color:#164e63;white-space:pre-wrap}.keyword-copy{background:#0891b2;padding:5px 8px;font-size:12px;margin-left:5px}.keyword-gap-label{display:inline-flex;align-items:center;gap:4px;margin:4px 6px;font-size:12px;color:#164e63}.keyword-gap-input{width:58px;padding:5px;border:1px solid #67e8f9;border-radius:7px;background:#fff}
-.practice-cell{width:38%;min-width:360px}.practice-input,.question-practice-input{width:100%;min-height:70px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical;background:#fff}.question-practice-input{min-height:58px}.important-text{color:#15803d!important;font-weight:900}.core-text{font-weight:900}.practice-tools{margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.practice-cell.practice-hidden{display:none!important}.question-practice{margin-top:8px}.question-practice-label{font-size:12px;color:#475569;font-weight:700;margin-bottom:3px}tr.only-forget-hidden{display:none!important}
+.practice-cell{width:38%;min-width:360px}.practice-input,.question-practice-input{width:100%;min-height:70px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:8px;font-size:14px;line-height:1.5;resize:vertical;background:#fff}.question-practice-input{min-height:58px}.important-text{color:#15803d!important;font-weight:900}.core-text{font-weight:900}.practice-tools{margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.practice-cell.practice-hidden{display:none!important}.question-practice{margin-top:8px}.question-practice-label{font-size:12px;color:#475569;font-weight:700;margin-bottom:3px}tr.only-forget-hidden{display:none!important}.group-gap td{height:18px;border:none!important;background:#fff!important;padding:0!important}
 </style>
 </head>
 <body>
@@ -431,20 +431,39 @@ function copyKeyword(id){
  alert('키워드 복사했어.');
 }
 function hideQuestions(){currentQuestionItems=[];document.getElementById('questionBox').style.display='none';document.getElementById('questionList').innerHTML='';}
-function setRows(pairs){document.getElementById('inputText').value=pairs.map(i=>`${i.ko}\t${i.en}`).join('\n');rows=pairs.map(i=>({ko:i.ko||'',en:i.en||'',important:!!i.important,notMemorized:!!i.notMemorized,core:!!i.core,done:false})).filter(i=>i.ko||i.en);renderTable();}
+function setRows(pairs){
+ document.getElementById('inputText').value=pairs.map(i=>i&&i.separator?'':`${i.ko||''}\t${i.en||''}`).join('\n');
+ rows=pairs.map(i=>{
+   if(i&&i.separator) return {separator:true,done:false};
+   return {ko:i.ko||'',en:i.en||'',important:!!i.important,notMemorized:!!i.notMemorized,core:!!i.core,done:false};
+ }).filter(i=>i.separator||i.ko||i.en);
+ renderTable();
+}
 function loadSelectedItem(){stopSpeak();const key=document.getElementById('unitSelect').value;const item=BOOK.items.find(v=>v.key===key);if(!item){alert('선택한 묶음을 찾지 못했어.');return;}showQuestions([item]);setRows(itemToPairs(item));}
 function loadAllItems(){stopSpeak();if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}const list=getSelectableItems();if(!list.length){alert('선택한 조건에 불러올 문장이 없어.');return;}showQuestions(list);setRows(list.flatMap(itemToPairs));}
 function loadAllImportantAnswers(){
  stopSpeak();
  if(!BOOK.items.length){alert('먼저 엑셀 파일을 선택해줘.');return;}
+
+ // 중요도=1인 문장이 하나라도 포함된 답변 묶음 전체를 불러온다.
+ // 즉, 중요 문장만 뽑는 것이 아니라 빈 줄로 구분된 그 문단 전체를 가져온다.
  const list=BOOK.items.filter(item => (item.answers||[]).some(a => !!a.important));
  if(!list.length){alert('중요 답변이 없어.');return;}
+
  const pairs=[];
- list.forEach(item => {
+ list.forEach((item,idx) => {
+   if(idx>0) pairs.push({separator:true});
    (item.answers||[]).forEach(a => {
-     if(a.important) pairs.push({ko:a.ko,en:a.en,important:!!a.important,notMemorized:!!a.notMemorized,core:!!a.core});
+     pairs.push({
+       ko:a.ko,
+       en:a.en,
+       important:!!a.important,
+       notMemorized:!!a.notMemorized,
+       core:!!a.core
+     });
    });
  });
+
  showQuestions(list);
  setRows(pairs);
 }
@@ -459,13 +478,21 @@ function parseText(){const text=document.getElementById('inputText').value.trim(
 function renderTable(){
  const tb=document.querySelector('#dataTable tbody');
  tb.innerHTML='';
+ let displayNo=1;
  rows.forEach((r,i)=>{
+  if(r.separator){
+    const gap=document.createElement('tr');
+    gap.className='group-gap';
+    gap.innerHTML='<td colspan="6"></td>';
+    tb.appendChild(gap);
+    return;
+  }
   const tr=document.createElement('tr');
   tr.id='row'+i;
   if(showOnlyNotMemorized && !r.notMemorized) tr.classList.add('only-forget-hidden');
   const pKey=getPracticeKey(r);
   const textClass=`${r.important?'important-text ':''}${r.core?'core-text':''}`.trim();
-  tr.innerHTML=`<td class="check-col"><input type="checkbox" class="forget-check" ${r.notMemorized?'checked':''} disabled></td><td class="num">${i+1}</td><td class="${textClass}">${escapeHtml(r.ko)}</td><td class="${textClass}">${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td><td class="practice-cell practice-hidden"><textarea class="practice-input" data-key="${escapeAttr(pKey)}" placeholder="" oninput="savePracticeInput(this)" onkeydown="practiceKeydown(event,this)">${escapeHtml(getSavedPractice(pKey))}</textarea></td>`;
+  tr.innerHTML=`<td class="check-col"><input type="checkbox" class="forget-check" ${r.notMemorized?'checked':''} disabled></td><td class="num">${displayNo++}</td><td class="${textClass}">${escapeHtml(r.ko)}</td><td class="${textClass}">${escapeHtml(r.en)}</td><td class="actions"><button class="small" onclick="readOne(${i},'both')">▶전체</button><button class="small" onclick="readOne(${i},'ko')">한글</button><button class="small" onclick="readOne(${i},'en')">영어</button><button class="small orange" onclick="repeatOne(${i})">🔁</button></td><td class="practice-cell practice-hidden"><textarea class="practice-input" data-key="${escapeAttr(pKey)}" placeholder="" oninput="savePracticeInput(this)" onkeydown="practiceKeydown(event,this)">${escapeHtml(getSavedPractice(pKey))}</textarea></td>`;
   tb.appendChild(tr);
  });
  updateCountInfo();
@@ -474,11 +501,11 @@ function renderTable(){
  setTimeout(refreshPracticeHeights,0);
 }
 function getVisibleRowIndices(){
- return rows.map((r,i)=>({r,i})).filter(x=>!showOnlyNotMemorized || x.r.notMemorized).map(x=>x.i);
+ return rows.map((r,i)=>({r,i})).filter(x=>!x.r.separator && (!showOnlyNotMemorized || x.r.notMemorized)).map(x=>x.i);
 }
 function updateCountInfo(){
  const visible=getVisibleRowIndices().length;
- const total=rows.length;
+ const total=rows.filter(r=>!r.separator).length;
  document.getElementById('countInfo').textContent=showOnlyNotMemorized?`${visible}개 문장 / 전체 ${total}개`:`${total}개 문장`;
 }
 function applyForgetOnlyButton(){
@@ -487,11 +514,7 @@ function applyForgetOnlyButton(){
 }
 function toggleForgetOnly(btn){
  showOnlyNotMemorized=!showOnlyNotMemorized;
- document.querySelectorAll('#dataTable tbody tr').forEach((tr,i)=>{
-   tr.classList.toggle('only-forget-hidden', showOnlyNotMemorized && !rows[i]?.notMemorized);
- });
- updateCountInfo();
- applyForgetOnlyButton();
+ renderTable();
 }
 
 function storageSafe(s){return encodeURIComponent(String(s||'')).slice(0,1800);}
@@ -526,7 +549,7 @@ function applyPracticeVisibility(){document.querySelectorAll('.practice-cell').f
 function togglePracticeColumn(btn){practiceVisible=!practiceVisible;applyPracticeVisibility();if(practiceVisible)setTimeout(refreshPracticeHeights,0);}
 document.getElementById('fileInput').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;const name=file.name.toLowerCase();if(name.endsWith('.txt')||name.endsWith('.csv')){document.getElementById('inputText').value=await file.text();parseText();return;}const data=await file.arrayBuffer();const wb=XLSX.read(data,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const arr=XLSX.utils.sheet_to_json(ws,{header:1,blankrows:false});rows=[];arr.forEach(line=>{const ko=val(line,0),en=val(line,1);if(ko&&en&&!isHeader(ko,en))rows.push({ko,en,important:false,notMemorized:false,core:false,done:false});});document.getElementById('inputText').value=rows.map(r=>`${r.ko}\t${r.en}`).join('\n');renderTable();});
 function rateToEdge(v){const n=Number(v||1),pct=Math.round((n-1)*100);return pct===0?'+0%':pct>0?`+${pct}%`:`${pct}%`;}
-function getPythonDataBlock(){return rows.map(r=>`    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n');}
+function getPythonDataBlock(){return rows.filter(r=>!r.separator).map(r=>`    (${pyStr(r.ko)}, ${pyStr(r.en)})`).join(',\n');}
 function setPythonCode(code,mode){currentPythonMode=mode;document.getElementById('pythonCode').textContent=code;document.getElementById('pythonCard').style.display='block';return code;}
 function baseSettings(){return{base:document.getElementById('baseName').value||'opic_practice',repeat:Number(document.getElementById('repeatCount').value||1),random:document.getElementById('pythonRandom').checked,koRate:rateToEdge(document.getElementById('koRate').value),enRate:rateToEdge(document.getElementById('enRate').value),data:getPythonDataBlock()};}
 function generatePython(mode='both'){if(!rows.length){alert('먼저 표를 생성해줘.');return '';}const s=baseSettings();let code='';if(mode==='both')code=["# pip install edge-tts","import asyncio","import random","from pathlib import Path","import edge_tts","",`BASE_NAME = ${pyStr(s.base)}`,`REPEAT_COUNT = ${s.repeat}`,`RANDOM_ORDER = ${s.random?'True':'False'}`,`KO_VOICE = "ko-KR-SunHiNeural"`,`EN_VOICE = "en-US-JennyNeural"`,`KO_RATE = ${pyStr(s.koRate)}`,`EN_RATE = ${pyStr(s.enRate)}`,"DATA = [",s.data,"]","out_dir = Path(BASE_NAME)","out_dir.mkdir(exist_ok=True)","async def make_mp3(text, voice, rate, path):","    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)","    await communicate.save(str(path))","async def main():","    sequence = list(DATA)","    clip_no = 1","    for _ in range(REPEAT_COUNT):","        if RANDOM_ORDER:","            random.shuffle(sequence)","        for ko, en in sequence:","            no = f'{clip_no:03d}'","            await make_mp3(ko, KO_VOICE, KO_RATE, out_dir / f'{no}_ko.mp3')","            await make_mp3(en, EN_VOICE, EN_RATE, out_dir / f'{no}_en.mp3')","            print(f'saved {no}')","            clip_no += 1","    print('완료!')","if __name__ == '__main__':","    asyncio.run(main())"].join('\n');else{const isKo=mode==='ko';code=["# pip install edge-tts","import asyncio","from pathlib import Path","import edge_tts","",`BASE_NAME = ${pyStr(s.base)}`,`SELECT_TXT = ${pyStr(mode)}`,`VOICE = ${pyStr(isKo?'ko-KR-SunHiNeural':'en-US-JennyNeural')}`,`RATE = ${pyStr(isKo?s.koRate:s.enRate)}`,"DATA = [",s.data,"]","out_dir = Path(BASE_NAME)","out_dir.mkdir(exist_ok=True)","async def make_mp3(text, voice, rate, path):","    communicate = edge_tts.Communicate(text, voice=voice, rate=rate)","    await communicate.save(str(path))","    print(f'생성 완료: {path}')","async def main():",isKo?"    final_text = ' '.join([ko for ko, en in DATA])":"    final_text = ' '.join([en for ko, en in DATA])",`    await make_mp3(final_text, VOICE, RATE, out_dir / ${pyStr(isKo?'ko.mp3':'en.mp3')})`,"if __name__ == '__main__':","    asyncio.run(main())"].join('\n');}return setPythonCode(code,mode);}
